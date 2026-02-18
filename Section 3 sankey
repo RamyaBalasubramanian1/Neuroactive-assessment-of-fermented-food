@@ -1,0 +1,1555 @@
+
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+install.packages("coloRamPalette")
+library(colorRampPalette)
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(factoextra)) install.packages("factoextra")
+library(gridExtra)
+library(ggplot2)
+library(factoextra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+library(compositions)
+library(Tjazi)
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+library(igraph)
+library(ggraph)
+library(ggplot2)
+library(patchwork)
+library(pheatmap)
+library(reshape2)
+########################
+bai_strat <- read.table("baijiu_strat_modules.tsv")
+bai_strat <- row_to_names(bai_strat, 1)
+bai_strat[, 3:ncol(bai_strat)] <- lapply(bai_strat[, 3:ncol(bai_strat)], as.numeric)
+str(bai_strat)
+library(tidyr)
+bai_long <- pivot_longer(bai_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+bai_long <- bai_long[bai_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+bai_long_annotated <- merge(bai_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+bai_long_annotated$Module <- NULL
+names(bai_long_annotated)[names(bai_long_annotated) == "Annotation"] <- "Module"
+bai_long_annotated$Sample <- substr(bai_long_annotated$Sample, 1, 11)
+colnames(bai_long_annotated)[colnames(bai_long_annotated)=="Sample"] <- "ID"
+################
+bai_long_annotated <- bai_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+bai_long_annotated <- bai_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+heatmap_df <- bai_long_annotated %>%
+  group_by(Taxon, Module) %>%
+  summarise(Contribution = sum(Contribution), .groups = "drop")
+
+
+heat_matrix <- dcast(heatmap_df, Taxon ~ Module, value.var = "Contribution", fill = 0)
+rownames(heat_matrix) <- heat_matrix$Taxon
+heat_matrix <- heat_matrix[ , -1]  # remove Taxon column
+
+svg("final_figs/section_3/baijiu.svg", 
+    width = 6, height = 10)
+
+pheatmap::pheatmap(
+  heat_matrix,
+  scale = "row",
+  clustering_distance_rows = "euclidean",
+  cluster_cols = FALSE,
+  clustering_method = "complete",
+  main = "Taxon Contribution to Molecules", fontsize = 2
+)
+dev.off()
+#######################################################
+#######################################################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+anno <- read.csv("annotation_gbm.csv")
+kin_strat <- read.table("kinema_modules.tsv")
+kin_strat <- row_to_names(kin_strat, 1)
+kin_strat[, 3:ncol(kin_strat)] <- lapply(kin_strat[, 3:ncol(kin_strat)], as.numeric)
+str(kin_strat)
+library(tidyr)
+
+kin_long <- pivot_longer(kin_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+kin_long <- kin_long[kin_long$Contribution > 0, ]
+kin_long_annotated <- merge(kin_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+kin_long_annotated$Module <- NULL
+names(kin_long_annotated)[names(kin_long_annotated) == "Annotation"] <- "Module"
+kin_long_annotated$Sample <- substr(kin_long_annotated$Sample, 1, 10)
+colnames(kin_long_annotated)[colnames(kin_long_annotated)=="Sample"] <- "ID"
+################
+kin_long_annotated <- kin_long_annotated %>%
+  inner_join(meta, by = "ID") %>%
+  filter(!is.na(Fermented.food.category))
+kin_long_annotated <- kin_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+heatmap_df <- kin_long_annotated %>%
+  group_by(Taxon, Module) %>%
+  summarise(Contribution = sum(Contribution), .groups = "drop")
+
+
+heat_matrix <- dcast(heatmap_df, Taxon ~ Module, value.var = "Contribution", fill = 0)
+rownames(heat_matrix) <- heat_matrix$Taxon
+heat_matrix <- heat_matrix[ , -1]  # remove Taxon column
+
+svg("final_figs/section_3/kinema.svg", 
+    width = 6, height = 10)
+
+
+pheatmap::pheatmap(
+  heat_matrix,
+  scale = "row",
+  clustering_distance_rows = "euclidean",
+  cluster_cols = FALSE,
+  clustering_method = "complete",
+  main = "Taxon Contribution to Molecules", fontsize = 2
+)
+dev.off()
+
+
+
+########################################################
+########################################################
+
+mk_strat <- read.table("mk_modules_strat.tsv")
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk_strat) <- gsub("\\.", "-", colnames(mk_strat))
+
+mk_strat <- row_to_names(mk_strat, 1)
+mk_strat[, 3:ncol(mk_strat)] <- lapply(mk_strat[, 3:ncol(mk_strat)], as.numeric)
+str(mk_strat)
+library(tidyr)
+
+mk_long <- pivot_longer(mk_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+mk_long <- mk_long[mk_long$Contribution > 0, ]
+mk_long$Sample <- sub("_interleaved.*", "", mk_long$Sample)
+
+mk_long <- mk_long[!mk_long$Sample %in% removed_samples,]
+
+
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+mk_long_annotated <- merge(mk_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+mk_long_annotated$Module <- NULL
+names(mk_long_annotated)[names(mk_long_annotated) == "Annotation"] <- "Module"
+mk_long_annotated <- mk_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+################
+links <- aggregate(Contribution ~ Taxon + Module, data = mk_long_annotated, sum)
+names(links) <- c("source", "target", "value")
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 12, nodeWidth = 30)
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_mk.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_mk.html", file = "final_figs/section_3/sankey_plot_mk.pdf", selector = "pdf")
+###########################
+#including molecule
+# Load required package
+# Merge annotation info into mk_long
+mk_long_annotated <- merge(mk_long, anno[, c("Module", "Annotation", "Molecule")], 
+                           by = "Module", all.x = TRUE)
+mk_long_annotated <- mk_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = mk_long_annotated, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = mk_long_annotated, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+library(RColorBrewer)
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+all_colors <- c(mol_colors, ann_colors)
+# === 4. Map consistent colors ===
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_mk.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_mk.html", file = "final_figs/section_3/optimisation/sankey_plot_mk.pdf", selector = "pdf")
+############################################
+# library(pheatmap)
+# library(reshape2)
+# 
+# # Summarize contribution
+# heatmap_df <- mk_long_annotated %>%
+#   group_by(Taxon, Molecule) %>%
+#   summarise(Contribution = sum(Contribution), .groups = "drop")
+# 
+# # Reshape into matrix
+# heat_matrix <- dcast(heatmap_df, Taxon ~ Molecule, value.var = "Contribution", fill = 0)
+# rownames(heat_matrix) <- heat_matrix$Taxon
+# heat_matrix <- heat_matrix[ , -1]  # remove Taxon column
+# 
+# # Plot
+# pheatmap(heat_matrix,
+#          scale = "row",  # normalize per taxon (optional)
+#          clustering_distance_rows = "euclidean",
+#          clustering_distance_cols = "euclidean",
+#          clustering_method = "complete",
+#          main = "Taxon Contribution to Molecules")
+
+####################################################################
+####################################################################
+wk_strat <- read.table("wk_modules_strat.tsv")
+wk_strat <- row_to_names(wk_strat, 1)
+wk_strat[, 3:ncol(wk_strat)] <- lapply(wk_strat[, 3:ncol(wk_strat)], as.numeric)
+str(wk_strat)
+library(tidyr)
+
+wk_long <- pivot_longer(wk_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+wk_long <- wk_long[wk_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+wk_long_annotated <- merge(wk_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+wk_long_annotated$Module <- NULL
+names(wk_long_annotated)[names(wk_long_annotated) == "Annotation"] <- "Module"
+################
+links <- aggregate(Contribution ~ Taxon + Module, data = wk_long_annotated, sum)
+names(links) <- c("source", "target", "value")
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 12, nodeWidth = 30)
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 12, nodeWidth = 30)
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_wk.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_wk.html", file = "final_figs/section_3/sankey_plot_wk.pdf", selector = "pdf")
+###########################
+#including molecule
+# Load required package
+# Merge annotation info into mk_long
+wk_long_annotated <- merge(wk_long, anno[, c("Module", "Annotation", "Molecule")], 
+                           by = "Module", all.x = TRUE)
+
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = wk_long_annotated, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = wk_long_annotated, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 12, nodeWidth = 30)
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_wk.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_wk.html", file = "final_figs/section_3/sankey_plot_wk.pdf", selector = "pdf")
+######################################################################
+######################################################################
+######################################################################
+library(RColorBrewer)
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+
+all_colors <- c(mol_colors, ann_colors)
+###################
+
+wk_strat <- read.table("wk_modules_strat.tsv")
+wk_strat <- row_to_names(wk_strat, 1)
+wk_strat[, 3:ncol(wk_strat)] <- lapply(wk_strat[, 3:ncol(wk_strat)], as.numeric)
+
+wk_long <- pivot_longer(wk_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+wk_long <- wk_long[wk_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+wk_long_annotated <- merge(wk_long, anno[, c("Module", "Annotation", "Molecule")], 
+                           by = "Module", all.x = TRUE)
+#######################################################
+wk_long_annotated <- wk_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+
+
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = wk_long_annotated, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = wk_long_annotated, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+
+
+
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_wk.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_wk.html", file = "final_figs/section_3/optimisation/sankey_plot_wk.pdf", selector = "pdf")
+#####################################
+####################################################################
+####################################################################
+####################################################################
+kom_strat <- read.table("kombucha_modules_strat.tsv")
+kom_strat <- row_to_names(kom_strat, 1)
+kom_strat[, 3:ncol(kom_strat)] <- lapply(kom_strat[, 3:ncol(kom_strat)], as.numeric)
+str(kom_strat)
+library(tidyr)
+
+kom_long <- pivot_longer(kom_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+kom_long <- kom_long[kom_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+library(RColorBrewer)
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+
+
+
+kom_long_annotated <- merge(kom_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+head(kom_long_annotated)
+kom_long_annotated$Module <- NULL
+names(kom_long_annotated)[names(kom_long_annotated) == "Annotation"] <- "Module"
+kom_long_annotated <- kom_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+################
+links <- aggregate(Contribution ~ Taxon + Module, data = kom_long_annotated, sum)
+names(links) <- c("source", "target", "value")
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+all_colors <- c(mol_colors, ann_colors)
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 12, nodeWidth = 30,  colourScale = color_scale)
+# p <- sankeyNetwork(Links = links, Nodes = nodes,
+#                    Source = "source", Target = "target",
+#                    Value = "value", NodeID = "name",
+#                    fontSize = 12, nodeWidth = 30)
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_kom.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_kom.html", file = "final_figs/section_3/sankey_plot_kom.pdf", selector = "pdf")
+###########################
+#including molecule
+# Load required package
+# Merge annotation info into mk_long
+kom_long_annotated <- merge(kom_long, anno[, c("Module", "Annotation", "Molecule")], 
+                            by = "Module", all.x = TRUE)
+kom_long_annotated <- kom_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = kom_long_annotated, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = kom_long_annotated, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_kom.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_kom.html", file = "final_figs/section_3/sankey_plot_kom.pdf", selector = "pdf")
+###
+#################################################################
+##paula mk#############################################################
+###############################################
+paula_strat <- read.table("paula_strat_modules.tsv")
+paula_strat <- row_to_names(paula_strat, 1)
+paula_strat[, 3:ncol(paula_strat)] <- lapply(paula_strat[, 3:ncol(paula_strat)], as.numeric)
+str(paula_strat)
+library(tidyr)
+
+paula_long <- pivot_longer(paula_strat, 
+                           cols = -c(Taxon, Module), 
+                           names_to = "Sample", 
+                           values_to = "Contribution")
+paula_long <- paula_long[paula_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+paula_long_annotated <- merge(paula_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+
+paula_long_annotated <- paula_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+###############################
+# head(paula_long_annotated)
+# paula_long_annotated$Sample <- sub("^(.*S[0-9]+).*", "\\1", paula_long_annotated$Sample)
+# paula_long_annotated$Module <- NULL
+# names(paula_long_annotated)[names(paula_long_annotated) == "Annotation"] <- "Module"
+# 
+
+##############################################
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+all_colors <- c(mol_colors, ann_colors)
+
+# Redefine MilkType after the merge
+paula_long_annotated$MilkType <- ifelse(grepl("_CoM", paula_long_annotated$Sample), 
+                                        "Coconut milk kefir", 
+                                        "Soy milk kefir")
+# paula_long_annotated <- merge(paula_long_annotated, 
+#                               anno[, c("Module", "Annotation", "Molecule")], 
+#                               by = "Module", all.x = TRUE)
+
+
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = paula_long_annotated, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = paula_long_annotated, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_paula.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_paula.html", file = "final_figs/section_3/optimisation/sankey_plot_paula.pdf", selector = "pdf")
+###################################################
+###################################################
+#doing the same for kimchi,sauerkruat and kvass(beet)
+
+fs_strat <- read.table("fs_modules_strat.tsv", header = TRUE)
+#fs_strat <- row_to_names(fs_strat, 1)
+fs_strat[, 3:ncol(fs_strat)] <- lapply(fs_strat[, 3:ncol(fs_strat)], as.numeric)
+str(fs_strat)
+library(tidyr)
+
+fs_long <- pivot_longer(fs_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+fs_long <- fs_long[fs_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+fs_long_annotated <- merge(fs_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+head(fs_long_annotated)
+# fs_long_annotated$Sample <- sub("^(.*S[0-9]+).*", "\\1", fs_long_annotated$Sample)
+# fs_long_annotated$Module <- NULL
+# names(fs_long_annotated)[names(fs_long_annotated) == "Annotation"] <- "Module"
+fs_long_annotated$Sample <- substr(fs_long_annotated$Sample, 1, 4)
+colnames(fs_long_annotated)[colnames(fs_long_annotated) =="Sample"] = "ID"
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+fs_fermented <- fs_fermented %>% filter(Fermented.food.category=="Sauerkraut")
+fs_fermented <- fs_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+################
+links <- aggregate(Contribution ~ Taxon + Module, data = fs_fermented, sum)
+names(links) <- c("source", "target", "value")
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+sankeyNetwork(Links = links, Nodes = nodes,
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize = 12, nodeWidth = 30)
+
+
+links1 <- aggregate(Contribution ~ Taxon + Module, data = fs_fermented, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Module + Molecule, data = fs_fermented, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 12, nodeWidth = 30)
+#############################################
+
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = fs_fermented, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = fs_fermented, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+all_colors <- c(mol_colors, ann_colors)
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_sau.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_sau.html", file = "final_figs/section_3/optimisation/sankey_plot_sau.pdf", selector = "pdf")
+#
+
+##############################################
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+fs_fermented <- fs_fermented %>% filter(Fermented.food.category==c("Kimchi", "Scallion kimchi", "Carrot kimchi", "Brussels sprout kimchi"))
+fs_fermented <- fs_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+
+links1 <- fs_fermented %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Fermented.food.category, target = Taxon)
+
+links2 <- fs_fermented %>%
+  group_by(Taxon, Module) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Taxon, target = Module)
+
+links3 <- fs_fermented %>%
+  group_by(Module, Molecule) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Module, target = Molecule)
+
+links <- bind_rows(links1, links2, links3)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 8, nodeWidth = 20,
+                   margin = list(left = 20))  
+
+onRender(p, '
+  function(el, x) {
+    d3.select(el)
+      .selectAll(".node text")
+      .attr("x", -6)
+      .attr("text-anchor", "end");
+  }
+')
+p
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_kim.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_kim.html", file = "final_figs/section_3/sankey_plot_kim.pdf", selector = "pdf")
+#############################################################
+
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = fs_fermented, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = fs_fermented, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+all_colors <- c(mol_colors, ann_colors)
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_kim.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_kim.html", file = "final_figs/section_3/optimisation/sankey_plot_kim.pdf", selector = "pdf")
+#
+############################################################
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+fs_fermented <- fs_fermented %>% filter(Fermented.food.category=="Beetroot kvass")
+fs_fermented <- fs_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+################
+links <- aggregate(Contribution ~ Taxon + Module, data = fs_fermented, sum)
+names(links) <- c("source", "target", "value")
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+sankeyNetwork(Links = links, Nodes = nodes,
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize = 12, nodeWidth = 30)
+
+
+links1 <- aggregate(Contribution ~ Taxon + Module, data = fs_fermented, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Module + Molecule, data = fs_fermented, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <-sankeyNetwork(Links = links, Nodes = nodes,
+                  Source = "source", Target = "target",
+                  Value = "value", NodeID = "name",
+                  fontSize = 12, nodeWidth = 30)
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_kvass.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_kvass.html", file = "final_figs/section_3/sankey_plot_kvass.pdf", selector = "pdf")
+#############################################
+#############################################
+links1 <- aggregate(Contribution ~ Taxon + Module, data = fs_fermented, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Module + Molecule, data = fs_fermented, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+all_colors <- c(mol_colors, ann_colors)
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_kvass.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_kvass.html", file = "final_figs/section_3/optimisation/sankey_plot_kvass.pdf", selector = "pdf")
+
+############################################
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category)) %>% 
+  group_by(Fermented.food.category, Substrate)
+
+fs_fermented <- fs_fermented %>% filter(Substrate=="Dairy")
+
+library(dplyr)
+library(networkD3)
+
+links1 <- fs_fermented %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Fermented.food.category, target = Taxon)
+
+links2 <- fs_fermented %>%
+  group_by(Taxon, Module) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Taxon, target = Module)
+
+links3 <- fs_fermented %>%
+  group_by(Module, Molecule) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Module, target = Molecule)
+
+links <- bind_rows(links1, links2, links3)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 8, nodeWidth = 20,
+                   margin = list(left = 20))  # Increase left margin here
+
+onRender(p, '
+  function(el, x) {
+    d3.select(el)
+      .selectAll(".node text")
+      .attr("x", -6)
+      .attr("text-anchor", "end");
+  }
+')
+p
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_eur_dairy.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_eur_dairy.html", file = "final_figs/section_3/sankey_plot_eur_dairy.pdf", selector = "pdf")
+##########################################
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+all_colors <- c(mol_colors, ann_colors)
+# === 3. Create Sankey links ===
+links1 <- aggregate(Contribution ~ Taxon + Annotation, data = fs_fermented, sum)
+names(links1) <- c("source", "target", "value")
+
+links2 <- aggregate(Contribution ~ Annotation + Molecule, data = fs_fermented, sum)
+names(links2) <- c("source", "target", "value")
+
+links <- rbind(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+
+
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_eur_dairy.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_eur_dairy.html", file = "final_figs/section_3/optimisation/sankey_plot_eur_dairy.pdf", selector = "pdf")
+
+##########################################
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category)) %>% 
+  group_by(Fermented.food.category, Substrate)
+
+fs_fermented <- fs_fermented %>% filter(Substrate=="Brine")
+
+library(dplyr)
+library(networkD3)
+
+# Ensure the required columns exist
+# Step 1: Create all 3-level links
+links1 <- fs_fermented %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Fermented.food.category, target = Taxon)
+
+links2 <- fs_fermented %>%
+  group_by(Taxon, Module) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Taxon, target = Module)
+
+links3 <- fs_fermented %>%
+  group_by(Module, Molecule) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Module, target = Molecule)
+
+links <- bind_rows(links1, links2, links3)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 10, nodeWidth = 10)
+
+onRender(p, '
+  function(el, x) {
+    d3.select(el)
+      .selectAll(".node text")
+      .attr("x", -2)
+      .attr("text-anchor", "end");
+  }
+')
+
+p
+##########################################
+#aff food
+aff_strat <- read.table("aff_start_modules.tsv", header = TRUE)
+aff_strat[, 3:ncol(aff_strat)] <- lapply(aff_strat[, 3:ncol(aff_strat)], as.numeric)
+str(aff_strat)
+library(tidyr)
+
+aff_long <- pivot_longer(aff_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+aff_long <- aff_long[aff_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+aff_long_annotated <- merge(aff_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+head(aff_long_annotated)
+aff_long_annotated$Sample <- substr(aff_long_annotated$Sample, 1, 4)
+aff_long_annotated$Module <- NULL
+names(aff_long_annotated)[names(aff_long_annotated) == "Annotation"] <- "Module"
+colnames(aff_long_annotated)[colnames(aff_long_annotated) =="Sample"] = "ID"
+##############################
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+##############################
+aff_fermented <- aff_fermented %>% filter(Substrate=="Palm Tree")
+aff_fermented <- aff_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+links1 <- aff_fermented %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Fermented.food.category, target = Taxon)
+
+links2 <- aff_fermented %>%
+  group_by(Taxon, Module) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Taxon, target = Module)
+
+links3 <- aff_fermented %>%
+  group_by(Module, Molecule) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Module, target = Molecule)
+
+links <- bind_rows(links1, links2, links3)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 8, nodeWidth = 20,
+                   margin = list(left = 20))  # Increase left margin here
+
+onRender(p, '
+  function(el, x) {
+    d3.select(el)
+      .selectAll(".node text")
+      .attr("x", -6)
+      .attr("text-anchor", "end");
+  }
+')
+p
+htmlwidgets::saveWidget(p, "final_figs/section_3/sankey_plot_palm.html")
+webshot2::webshot("final_figs/section_3/sankey_plot_palm.html", file = "final_figs/section_3/sankey_plot_palm.pdf", selector = "pdf")
+###############################################
+
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+all_colors <- c(mol_colors, ann_colors)
+
+links1 <- aff_fermented %>%
+  group_by(Taxon, Module) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Taxon, target = Module)
+
+links2 <- aff_fermented %>%
+  group_by(Module, Molecule) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Module, target = Molecule)
+
+links <- bind_rows(links1, links2)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+nodes$group <- nodes$name  # for color matching
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+
+node_colors <- sapply(nodes$group, function(x) ifelse(x %in% names(all_colors), all_colors[x], "#CCCCCC"))
+color_scale <- paste0(
+  'd3.scaleOrdinal().domain(["', paste(nodes$group, collapse = '", "'), 
+  '"]).range(["', paste(node_colors, collapse = '", "'), '"])'
+)
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target", Value = "value",
+                   NodeID = "name", NodeGroup = "group",
+                   fontSize = 12, nodeWidth = 30,
+                   colourScale = color_scale)
+
+###################################
+htmlwidgets::saveWidget(p, "final_figs/section_3/optimisation/sankey_plot_palm.html")
+webshot2::webshot("final_figs/section_3/optimisation/sankey_plot_palm.html", file = "final_figs/section_3/optimisation/sankey_plot_palm.pdf", selector = "pdf")
+
+###############################################
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+##############################
+aff_fermented <- aff_fermented %>% filter(Substrate=="Root and tuber")
+aff_fermented <- aff_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+links1 <- aff_fermented %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Fermented.food.category, target = Taxon)
+
+links2 <- aff_fermented %>%
+  group_by(Taxon, Module) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Taxon, target = Module)
+
+links3 <- aff_fermented %>%
+  group_by(Module, Molecule) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Module, target = Molecule)
+
+links <- bind_rows(links1, links2, links3)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 8, nodeWidth = 30,
+                   margin = list(left = 20))  # Increase left margin here
+
+onRender(p, '
+  function(el, x) {
+    d3.select(el)
+      .selectAll(".node text")
+      .attr("x", -6)
+      .attr("text-anchor", "end");
+  }
+')
+
+
+heatmap_df <- aff_fermented %>%
+  group_by(Taxon, Molecule) %>%
+  summarise(Contribution = sum(Contribution), .groups = "drop")
+
+
+heat_matrix <- dcast(heatmap_df, Taxon ~ Molecule, value.var = "Contribution", fill = 0)
+rownames(heat_matrix) <- heat_matrix$Taxon
+heat_matrix <- heat_matrix[ , -1]  # remove Taxon column
+
+svg("final_figs/section_3/root_tuber.svg", 
+    width = 6, height = 10)
+
+pheatmap::pheatmap(
+  heat_matrix,
+  scale = "row",
+  clustering_distance_rows = "euclidean",
+  cluster_cols = FALSE,
+  clustering_method = "complete",
+  main = "Taxon Contribution to Molecules", fontsize = 2
+)
+dev.off()
+#########################################
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+aff_fermented <- aff_fermented %>% filter(Substrate=="Cereal")
+aff_fermented <- aff_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+heatmap_df <- aff_fermented %>%
+  group_by(Taxon, Molecule) %>%
+  summarise(Contribution = sum(Contribution), .groups = "drop")
+
+heat_matrix <- dcast(heatmap_df, Taxon ~ Molecule, value.var = "Contribution", fill = 0)
+rownames(heat_matrix) <- heat_matrix$Taxon
+heat_matrix <- heat_matrix[ , -1]  # remove Taxon column
+
+svg("final_figs/section_3/cereal.svg", 
+    width = 6, height = 10)
+
+
+pheatmap::pheatmap(
+  heat_matrix,
+  scale = "row",
+  clustering_distance_rows = "euclidean",
+  cluster_cols = FALSE,
+  clustering_method = "complete",
+  main = "Taxon Contribution to Molecules", fontsize = 2
+)
+dev.off()
+########################################
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+aff_fermented <- aff_fermented %>% filter(Substrate=="Seed")
+aff_fermented <- aff_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+heatmap_df <- aff_fermented %>%
+  group_by(Taxon, Molecule) %>%
+  summarise(Contribution = sum(Contribution), .groups = "drop")
+
+heat_matrix <- dcast(heatmap_df, Taxon ~ Molecule, value.var = "Contribution", fill = 0)
+rownames(heat_matrix) <- heat_matrix$Taxon
+heat_matrix <- heat_matrix[ , -1]  # remove Taxon column
+
+svg("final_figs/section_3/seed.svg", 
+    width = 6, height = 10)
+
+pheatmap::pheatmap(
+  heat_matrix,
+  scale = "row",
+  clustering_distance_rows = "euclidean",
+  cluster_cols = FALSE,
+  clustering_method = "complete",
+  main = "Taxon Contribution to Molecules", fontsize = 2
+)
+dev.off()
+##########################################
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+aff_fermented <- aff_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+##############################
+aff_fermented <- aff_fermented %>% filter(Substrate=="Dairy")
+
+links1 <- aff_fermented %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Fermented.food.category, target = Taxon)
+
+links2 <- aff_fermented %>%
+  group_by(Taxon, Module) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Taxon, target = Module)
+
+links3 <- aff_fermented %>%
+  group_by(Module, Molecule) %>%
+  summarise(value = sum(Contribution), .groups = "drop") %>%
+  rename(source = Module, target = Molecule)
+
+links <- bind_rows(links1, links2, links3)
+
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+links$source <- match(links$source, nodes$name) - 1
+links$target <- match(links$target, nodes$name) - 1
+
+p <- sankeyNetwork(Links = links, Nodes = nodes,
+                   Source = "source", Target = "target",
+                   Value = "value", NodeID = "name",
+                   fontSize = 15, nodeWidth = 30,
+                   margin = list(left = 20))  # Increase left margin here
+
+# Shift labels to the left of the nodes
+onRender(p, '
+  function(el, x) {
+    d3.select(el)
+      .selectAll(".node text")
+      .attr("x", -6)
+      .attr("text-anchor", "end");
+  }
+')
+p
+
+############################################
+#i want to show the diversity of taxon contributing to module in ff is higher than FS
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+aff_long_annotated <- merge(aff_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+aff_long_annotated$Sample <- substr(aff_long_annotated$Sample, 1, 4)
+colnames(aff_long_annotated)[colnames(aff_long_annotated) == "Sample"] <- "ID"
+############
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+aff_fermented <- aff_fermented %>% filter(Substrate=="Dairy")
+##########
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+fs_fermented <- fs_fermented %>% filter(Substrate=="Dairy")
+######################
+# Diversity in FF
+ff_diversity <- aff_fermented %>%
+  group_by(Module) %>%
+  summarise(unique_taxa = n_distinct(Taxon))
+
+# Diversity in FS
+fs_diversity <- fs_fermented %>%
+  group_by(Module) %>%
+  summarise(unique_taxa = n_distinct(Taxon))
+
+diversity_compare <- full_join(ff_diversity %>% rename(AFF = unique_taxa),
+                               fs_diversity %>% rename(FS = unique_taxa),
+                               by = "Module") %>%
+  replace_na(list(AFF = 0, FS = 0)) 
+div_plot <- diversity_compare %>%
+  pivot_longer(cols = c("AFF", "FS"), names_to = "Source", values_to = "UniqueTaxa")
+
+p <-ggplot(div_plot, aes(x = Module, y = UniqueTaxa, fill = Source)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Taxonomic Diversity per Module FOR DAIRY BASED SUBSTRATES",
+       x = "Metabolic Module",
+       y = "Number of Unique Taxa") +
+  theme_minimal()+ theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+############################
+ggsave("final_figs/section_3/unique_taxa_aff_european.svg", plot = p, width = 12, height = 6, units = "in", dpi = 300, device = "svg")
+#############################
+
+aff_strat <- read.table("aff_strat_modules.tsv", header = TRUE)
+aff_strat[, 3:ncol(aff_strat)] <- lapply(aff_strat[, 3:ncol(aff_strat)], as.numeric)
+str(aff_strat)
+library(tidyr)
+
+aff_long <- pivot_longer(aff_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+aff_long <- aff_long[aff_long$Contribution > 0, ]
+aff_long <- aff_long %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+aff_long_annotated <- merge(aff_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+head(aff_long_annotated)
+aff_long_annotated$Sample <- substr(aff_long_annotated$Sample, 1, 4)
+aff_long_annotated$Module <- NULL
+names(aff_long_annotated)[names(aff_long_annotated) == "Annotation"] <- "Module"
+colnames(aff_long_annotated)[colnames(aff_long_annotated) =="Sample"] = "ID"
+##############################
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+aff_fermented <- aff_fermented %>% filter(Substrate=="Dairy")
+###############################################
+fs_strat <- read.table("fs_start_modules.tsv", header = TRUE)
+#fs_strat <- row_to_names(fs_strat, 1)
+fs_strat[, 3:ncol(fs_strat)] <- lapply(fs_strat[, 3:ncol(fs_strat)], as.numeric)
+str(fs_strat)
+library(tidyr)
+
+fs_long <- pivot_longer(fs_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+fs_long <- fs_long[fs_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+fs_long_annotated <- merge(fs_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+head(fs_long_annotated)
+fs_long_annotated$Sample <- sub("^(.*S[0-9]+).*", "\\1", fs_long_annotated$Sample)
+fs_long_annotated$Module <- NULL
+names(fs_long_annotated)[names(fs_long_annotated) == "Annotation"] <- "Module"
+fs_long_annotated$Sample <- substr(fs_long_annotated$Sample, 1, 4)
+colnames(fs_long_annotated)[colnames(fs_long_annotated) =="Sample"] = "ID"
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+fs_fermented <- fs_fermented %>% filter(Substrate=="Dairy")
+fs_fermented <- fs_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+##############################################
+#trying to show that the number of connections are more in european dairy compared to african dairy
+################################################
+aff_fermented$substrate <- "African dairy"
+fs_fermented$substrate <- "European dairy"
+combined_df <- bind_rows(aff_fermented, fs_fermented)
+
+# Summarize Taxon → Molecule contributions
+edge_data <- combined_df %>%
+  group_by(substrate, Taxon, Molecule) %>%
+  summarise(Contribution = sum(Contribution), .groups = "drop")
+
+#  Function to plot network for one substrate
+create_network_plot <- function(df, substrate_label) {
+  edges <- df %>% filter(substrate == substrate_label) %>%
+    select(from = Taxon, to = Molecule, value = Contribution)
+  
+  g <- graph_from_data_frame(edges, directed = FALSE)
+  
+  
+  taxon_nodes <- unique(df$Taxon[df$substrate == substrate_label])
+  molecule_nodes <- unique(df$Molecule[df$substrate == substrate_label])
+  
+  V(g)$type <- ifelse(V(g)$name %in% taxon_nodes, "Taxon",
+                      ifelse(V(g)$name %in% molecule_nodes, "Molecule", "Other"))
+  
+  ggraph(g, layout = "fr") +
+    geom_edge_link(aes(width = value), alpha = 0.4, color = "gray60") +
+    geom_node_point(aes(color = type), size = 4) +
+    geom_node_text(aes(label = name), repel = TRUE, size = 2.5, max.overlaps = Inf) +
+    scale_color_manual(values = c("Taxon" = "#1b9e77", "Molecule" = "#d95f02")) +
+    theme_void() +
+    labs(title = paste("Substrate:", substrate_label))
+}
+
+p_aff <- create_network_plot(edge_data, "African dairy")
+p_ff <- create_network_plot(edge_data, "European dairy")
+
+p_aff + p_ff + plot_layout(ncol = 2)
+################################################
+#binning cntributions 
+create_network_plot <- function(df, substrate_label) {
+  # Filter edges for the selected substrate
+  df_sub <- df %>% filter(substrate == substrate_label)
+
+  taxon_counts <- df_sub %>%
+    group_by(Molecule) %>%
+    summarise(n_taxa = n_distinct(Taxon), .groups = "drop") %>%
+    mutate(contrib_bin = cut(n_taxa,
+                             breaks = seq(0, max(n_taxa, na.rm = TRUE) + 5, by = 5),
+                             include.lowest = TRUE))
+  
+
+  df_sub <- df_sub %>%
+    left_join(taxon_counts, by = "Molecule")
+  
+  
+  edges <- df_sub %>%
+    select(from = Taxon, to = Molecule, value = Contribution, contrib_bin, n_taxa)
+  
+  g <- graph_from_data_frame(edges, directed = FALSE)
+  
+  taxon_nodes <- unique(df_sub$Taxon)
+  molecule_nodes <- unique(df_sub$Molecule)
+  
+  V(g)$type <- ifelse(V(g)$name %in% taxon_nodes, "Taxon",
+                      ifelse(V(g)$name %in% molecule_nodes, "Molecule", "Other"))
+  
+  V(g)$n_taxa <- ifelse(V(g)$name %in% taxon_counts$Molecule,
+                        taxon_counts$n_taxa[match(V(g)$name, taxon_counts$Molecule)],
+                        NA)
+  
+  library(tidygraph)
+  tg <- as_tbl_graph(g)
+  #plotty
+  ggraph(tg, layout = "fr") +
+    geom_edge_link(aes(width = value, color = contrib_bin), alpha = 0.7) +
+    geom_node_point(aes(color = type,
+                        size = ifelse(type == "Molecule", n_taxa, 2))) +
+    geom_node_text(aes(label = name), repel = TRUE, size = 2.5, max.overlaps = Inf) +
+    scale_color_manual(values = c("Taxon" = "#1b9e77", "Molecule" = "#d95f02")) +
+    scale_edge_color_brewer(palette = "YlOrRd", name = "# Taxa contributing (binned)") +
+    scale_size_continuous(range = c(2, 10), name = "# Taxa contributing to molecule") +
+    theme_void() +
+    labs(title = paste("Substrate:", substrate_label))
+}
+
+p_aff <- create_network_plot(edge_data, "African dairy")
+p_ff <- create_network_plot(edge_data, "European dairy")
+
+p <- p_aff + p_ff + plot_layout(ncol = 2)
+
+ggsave("final_figs/section_3/dairy_diversity_Aff.svg", plot = p_aff, width = 15, height = 6, units = "in", dpi = 300, device = "svg")
+ggsave("final_figs/section_3/dairy_diversity_ff.svg", plot = p_ff, width = 15, height = 6, units = "in", dpi = 300, device = "svg")
+###############################################
