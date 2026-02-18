@@ -1,0 +1,1024 @@
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+install.packages("coloRamPalette")
+library(colorRampPalette)
+# Install the circlize package if not already installed
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+library(ggpubr)
+library(ggplot2)
+library(ggsignif)
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(factoextra)) install.packages("factoextra")
+library(gridExtra)
+library(ggplot2)
+library(factoextra)
+install.packages("kableExtra")
+library(kableExtra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+library(compositions)
+library(Tjazi)
+library(ComplexHeatmap)
+library(circlize)
+#install.packages("RColorBrewer")
+library(RColorBrewer)
+
+#############################
+#####################################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#############################
+aff <- read.table("aff_gmm_modules.tsv", header=TRUE)
+fs <- read.table("fs_gmm_modules.tsv", header = TRUE)
+paula <- read.table("paula_gmm_modules.tsv", header = TRUE)
+mk <- read.table("mk_gmm_modules.txt", header = TRUE)
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_gmm_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kombucha_gmm_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_gmm_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_gmm_modules.tsv", header = TRUE)
+#####################################
+#####################################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim whites
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+################################################################################
+all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
+all <- all[, !(colnames(all) == "AF90")]#low sequencing depth
+################################################################################
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#############################################
+call[is.na(call)] <- 0
+call <- call[rownames(call) %in% meta$ID,]#sanity
+################################################################################
+call <- as.data.frame(call)
+call <- rownames_to_column(call, var="ID")
+
+call[ , -1] <- lapply(call[ , -1], function(x) as.numeric(trimws(x)))
+
+call <- merge(call, meta[, c("ID", "Substrate")], by = "ID")
+anno <- read.csv("annotation_gmm.csv")
+############################################################
+
+call_numeric <- call
+call_numeric[ , 2:(ncol(call_numeric)-1)] <- lapply(call_numeric[ , 2:(ncol(call_numeric)-1)], as.numeric)
+
+
+call_long <- call_numeric %>%
+  pivot_longer(cols = -c(ID, Substrate), names_to = "Module", values_to = "Abundance")
+
+# Join with anno
+call_long_annotated <- call_long %>%
+  left_join(anno[, c("Module", "Superpathway")], by = "Module") %>%
+  filter(!is.na(Superpathway))  # drop unmatched
+
+# Compute RA
+call_long_relative <- call_long_annotated %>%
+  group_by(ID) %>%
+  mutate(RelativeAbundance = 100 * Abundance / sum(Abundance)) %>%
+  ungroup()
+################################################################
+#  distinct colors for  Superpathways
+superpathways <- unique(call_long_relative$Superpathway)
+n_pathways <- length(superpathways)
+library(RColorBrewer)
+
+super_cols <- setNames(colorRampPalette(brewer.pal(12, "Set3"))(n_pathways), superpathways)
+#no jitter
+ggplot(call_long_relative, aes(x = RelativeAbundance, y = Superpathway, fill = Superpathway)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  facet_wrap(~Substrate, scales = "free_x") +
+  scale_fill_manual(values = super_cols) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Superpathway Relative Abundance by Substrate",
+    x = "Relative Abundance (%)",
+    y = "Superpathway"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 7),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "grey90")
+  )
+#ascending order
+# ---- REORDER SUPERPATHWAY BY MEDIAN ----
+
+superpathway_order <- call_long_relative %>%
+  group_by(Superpathway) %>%
+  summarise(median_abund = median(RelativeAbundance, na.rm = TRUE)) %>%
+  arrange(median_abund) %>%
+  pull(Superpathway)
+
+call_long_relative$Superpathway <- factor(call_long_relative$Superpathway, levels = superpathway_order)
+
+
+
+super_cols <- setNames(
+  colorRampPalette(brewer.pal(12, "Set3"))(length(superpathway_order)),
+  superpathway_order
+)
+
+
+p1 <- ggplot(call_long_relative, aes(x = RelativeAbundance, y = Superpathway, fill = Superpathway)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_jitter(aes(color = Superpathway), size = 0.5, width = 0, height = 0.2, alpha = 0.6) +
+  facet_wrap(~Substrate, scales = "free_x") +
+  scale_fill_manual(values = super_cols) +
+  scale_color_manual(values = super_cols) +
+  theme_minimal() +
+  labs(
+    title = "GMM Superpathway Relative Abundance By Substrate",
+    x = "Relative Abundance (%)",
+    y = "Superpathway"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 7),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "grey90")
+  )
+##########################################################
+
+##########################################################
+#black jitter
+p <- ggplot(call_long_relative, aes(x = RelativeAbundance, y = Superpathway, fill = Superpathway)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_jitter(color = "black", size = 0.5, width = 0, height = 0.2, alpha = 0.4) +  # <-- Black jitter
+  facet_wrap(~Substrate, scales = "fixed") +
+  scale_fill_manual(values = super_cols) +
+  theme_minimal() +
+  labs(
+    title = "GMM  Relative Abundance",
+    x = "Relative Abundance (%)",
+    y = "Superpathway"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 7),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "grey90")
+  )
+#############################################################
+ggsave("final_figs/section_2/JL_GMM.svg", plot = p, width = 8, height = 6, units = "in")
+#############################################################
+######################
+#are the pathways enriched amongst groups
+######################
+call_long_relative_clean <- call_long_relative %>%
+  filter(!is.na(RelativeAbundance), is.finite(RelativeAbundance))#removing na
+##############################
+summary_stats <- call_long_relative_clean %>%
+  group_by(Superpathway, Substrate) %>%
+  summarise(
+    mean_abund = mean(RelativeAbundance, na.rm = TRUE),
+    sd_abund = sd(RelativeAbundance, na.rm = TRUE),
+    .groups = "drop"
+  )
+# stats
+kruskal_results <- call_long_relative_clean %>%
+  group_by(Superpathway) %>%
+  summarise(
+    p_value = kruskal.test(RelativeAbundance ~ Substrate)$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(p_adj = p.adjust(p_value, method = "BH"))  # adjust for multiple testing
+##################################
+write.csv(kruskal_results, "impact_of_substrate_GMM_RA.csv")#from this we know that substrate has an effect on the abundance of these pathways
+#question arises: are these pathway(abundance) selected by substrates
+#this will tell us if the food selects for the pathways
+#john leech suggested it would be best to plot them as lefse plots
+###################################
+summary_stats <- left_join(summary_stats, kruskal_results, by = "Annotation")
+
+significant_annotations <- kruskal_results %>%
+  filter(p_adj < 0.05) %>%
+  pull(Superpathway)
+
+call_sig <- call_long_relative_clean %>%
+  filter(Superpathway %in% significant_annotations)
+
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", 
+  "Sugar" = "#ff7f0e", 
+  "Brine" = "#1b9e77",
+  "Soy" = "#d62728", 
+  "Coconut Dairy" = "#9467bd", 
+  "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", 
+  "Seed" = "#7f7f7f",
+  "Palm Tree" = "#17becf"
+)
+#######################################################
+p1 <- ggplot(call_sig, aes(x = Substrate, y = RelativeAbundance, fill = Substrate)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
+  facet_wrap(~ Superpathway, scales = "free_y") +
+  scale_fill_manual(values = substrate_colors) +
+  theme_minimal() +
+  labs(
+    title = "Significantly Enriched GMM Pathways Across Substrates",
+    x = "Substrate",
+    y = "Relative Abundance (%)"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    strip.text = element_text(face = "bold", size = 9),
+    legend.position = "none"
+  )
+ggsave("final_figs/section_2/JL_GMM_supplementary.svg", plot = p1, width = 8, height = 6, units = "in")
+# stats
+dunn_results <- call_long_relative_clean %>%
+  group_by(Superpathway) %>%
+  dunn_test(RelativeAbundance ~ Substrate, p.adjust.method = "BH") %>%
+  ungroup()
+
+sig_dunn <- dunn_results %>%
+  filter(p.adj < 0.05)
+
+dunn_matrix <- dunn_results %>%
+  filter(p.adj < 0.05) %>%
+  mutate(pair = paste(group1, "vs", group2)) %>%
+  select(Superpathway, pair, p.adj)
+
+# rep with heatmap
+library(tidyr)
+dunn_heat <- dunn_matrix %>%
+  pivot_wider(names_from = pair, values_from = p.adj)
+dunn_matrix <- dunn_heat %>%
+  pivot_longer(
+    cols = -Superpathway,
+    names_to = "pair",
+    values_to = "p.adj"
+  ) %>%
+  filter(!is.na(p.adj)) %>%
+  separate(pair, into = c("Group1", "Group2"), sep = " vs ")
+
+dunn_matrix <- dunn_matrix %>% filter(p.adj <0.05)
+library(ggplot2)
+library(viridis)  # for a nice color palette
+write.csv(dunn_matrix, "C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/dunn_test_impact_of_substate_GMM_abundance.csv")
+page_number <- 1
+
+p1 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Superpathway, scales = "free", ncol = 1, nrow = 5, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GMM - Page", page_number),
+    x = " ",
+    y = " "
+  ) 
+ggsave("final_figs/section_2/gmm_dunn_pg_1.svg", plot = p1, width = 8, height = 6, units = "in")
+page_number <- 2
+
+p2 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Superpathway, scales = "free", ncol = 1, nrow = 5, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GMM - Page", page_number),
+    x = " ",
+    y = " "
+  ) 
+ggsave("final_figs/section_2/gmm_dunn_pg_2.svg", plot = p2, width = 8, height = 6, units = "in")
+page_number <- 3
+p3 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Superpathway, scales = "free", ncol = 1, nrow = 5, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GMM - Page", page_number),
+    x = " ",
+    y = " "
+  ) 
+ggsave("final_figs/section_2/gmm_dunn_pg_3.svg", plot = p3, width = 8, height = 6, units = "in")
+page_number <- 4
+p4 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Superpathway, scales = "free", ncol = 1, nrow = 5, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GMM - Page", page_number),
+    x = " ",
+    y = " "
+  ) 
+ggsave("final_figs/section_2/gmm_dunn_pg_4.svg", plot = p4, width = 8, height = 6, units = "in")
+#############################################################
+#john leech idea of lefse plots
+#better than individual box plots
+a1 <- sig_dunn %>%
+  filter(!is.na(Superpathway) & Superpathway != "") %>%  # Remove blanks or NAs
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Superpathway,
+    ncol = 1,
+    nrow = 3,
+    page = 1, scales = "free_y"  # Change page number as needed
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 7)
+  )
+a2 <- sig_dunn %>%
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Superpathway,
+    ncol = 1,  # 1 column
+    nrow = 3,  # 3 rows per page = 3 plots
+    page = 2, scales ="free_y"   # change this to 2, 3, ... for other pages
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 4)
+  )
+a3 <- sig_dunn %>%
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Superpathway,
+    ncol = 1,  # 1 column
+    nrow = 3,  # 3 rows per page = 3 plots
+    page = 3, scales = "free_y"   # change this to 2, 3, ... for other pages
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 4)
+  )
+a4 <- sig_dunn %>%
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Superpathway,
+    ncol = 1,  # 1 column
+    nrow = 3,  # 3 rows per page = 3 plots
+    page = 4, scales = "free_y"   # change this to 2, 3, ... for other pages
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 4)
+  )
+
+ggsave("final_figs/section_2/gmm_jl_lefse_1.svg", plot = a1, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_2/gmm_jl_lefse_2.svg", plot = a2, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_2/gmm_jl_lefse_3.svg", plot = a3, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_2/gmm_jl_lefse_4.svg", plot = a4, width = 8, height = 6, units = "in")
+
+#doing the same for gut brain modules
+##############################################################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#############################
+aff <- read.table("aff_modules.tsv", header=TRUE)
+fs <- read.table("fs_modules.tsv", header = TRUE)
+paula <- read.table("paula_modules.tsv", header = TRUE)
+mk <- read.table("mk_modules.txt", header = TRUE)
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+
+wk <- read.table("wk_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kombucha_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_modules.tsv", header = TRUE)
+#####################################
+#####################################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove  underscore at the end
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# remove white space
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+################################################################################
+################################################################################
+all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
+all <- all[, !(colnames(all) == "AF90")]#low sequencing depth
+################################################################################
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#############################################
+call[is.na(call)] <- 0
+call <- call[rownames(call) %in% meta$ID,]#sanity
+################################################################################
+call <- as.data.frame(call)
+call <- rownames_to_column(call, var="ID")
+
+call[ , -1] <- lapply(call[ , -1], function(x) as.numeric(trimws(x)))
+
+call <- merge(call, meta[, c("ID", "Substrate")], by = "ID")
+anno <- read.csv("annotation_gbm.csv")
+################################################
+################################################
+#  `call` are numeric
+call_numeric <- call
+call_numeric[ , 2:(ncol(call_numeric)-1)] <- lapply(call_numeric[ , 2:(ncol(call_numeric)-1)], as.numeric)
+
+
+call_long <- call_numeric %>%
+  pivot_longer(cols = -c(ID, Substrate), names_to = "Module", values_to = "Abundance")
+
+# merging to get annotations incorporated
+call_long_annotated <- call_long %>%
+  left_join(anno[, c("Module", "Annotation")], by = "Module") %>%
+  filter(!is.na(Annotation))  # drop unmatched
+
+# RA per sample
+call_long_relative <- call_long_annotated %>%
+  group_by(ID) %>%
+  mutate(RelativeAbundance = 100 * Abundance / sum(Abundance)) %>%
+  ungroup()
+################################################################
+# distinct colors
+annotation <- unique(call_long_relative$Annotation)
+n_annotation <- length(annotation)
+
+# Use Set3 and interpolate if needed
+super_cols <- setNames(colorRampPalette(brewer.pal(12, "Set3"))(n_annotation), annotation)
+ggplot(call_long_relative, aes(x = RelativeAbundance, y = Annotation, fill = Annotation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  facet_wrap(~Substrate, scales = "free_x") +
+  scale_fill_manual(values = super_cols) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Superpathway Relative Abundance by Substrate",
+    x = "Relative Abundance (%)",
+    y = "Superpathway"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 7),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "grey90")
+  )
+#########################################
+q <- ggplot(call_long_relative, aes(x = RelativeAbundance, y = Annotation, fill = Annotation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(color = "black", size = 0.5, width = 0, height = 0.2, alpha = 0.4) +  # ⬅️ black jitter
+  facet_wrap(~Substrate, scales = "free_x") +
+  scale_fill_manual(values = super_cols) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Superpathway Relative Abundance by Substrate",
+    x = "Relative Abundance (%)",
+    y = "Superpathway"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 7),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "grey90")
+  )
+###############
+# ascending pathway arrangement
+annotation_order <- call_long_relative %>%
+  group_by(Annotation) %>%
+  summarise(median_abund = median(RelativeAbundance, na.rm = TRUE)) %>%
+  arrange(median_abund) %>%
+  pull(Annotation)
+
+call_long_relative$Annotation <- factor(call_long_relative$Annotation, levels = annotation_order)
+#################
+ggplot(call_long_relative, aes(x = RelativeAbundance, y = Annotation, fill = Annotation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_jitter(aes(color = Annotation), size = 0.5, width = 0, height = 0.2, alpha = 0.4) +
+  facet_wrap(~Substrate, scales = "fixed") +
+  scale_fill_manual(values = super_cols) +
+  scale_color_manual(values = super_cols) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Superpathway Relative Abundance by Substrate",
+    x = "Relative Abundance (%)",
+    y = "Superpathway (Annotation)"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 7),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "grey90")
+  )
+#black jitter
+q <- ggplot(call_long_relative, aes(x = RelativeAbundance, y = Annotation, fill = Annotation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_jitter(color = "black", size = 0.5, width = 0, height = 0.2, alpha = 0.4) +  # <-- Black jitter
+  facet_wrap(~Substrate, scales = "fixed") +
+  scale_fill_manual(values = super_cols) +
+  theme_minimal() +
+  labs(
+    title = "GBM  Relative Abundance",
+    x = "Relative Abundance (%)",
+    y = "Superpathway"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 7),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none",
+    panel.grid.major.y = element_line(color = "grey90")
+  )
+ggsave("final_figs/section_2/gbm_jl.svg", plot = q, width = 8, height = 6, units = "in")
+######################
+#are the pathways enriched amongst groups
+######################
+call_long_relative_clean <- call_long_relative %>%
+  filter(!is.na(RelativeAbundance), is.finite(RelativeAbundance))#removing na
+##############################
+summary_stats <- call_long_relative_clean %>%
+  group_by(Annotation, Substrate) %>%
+  summarise(
+    mean_abund = mean(RelativeAbundance, na.rm = TRUE),
+    sd_abund = sd(RelativeAbundance, na.rm = TRUE),
+    .groups = "drop"
+  )
+# stat
+kruskal_results <- call_long_relative_clean %>%
+  group_by(Annotation) %>%
+  summarise(
+    p_value = kruskal.test(RelativeAbundance ~ Substrate)$p.value,
+    .groups = "drop"
+  ) %>%
+  mutate(p_adj = p.adjust(p_value, method = "BH"))  # adjust for multiple testing
+##################################
+write.csv(kruskal_results, "impact_of_substrate_GBM_RA.csv")
+###################################
+summary_stats <- left_join(summary_stats, kruskal_results, by = "Annotation")
+
+significant_annotations <- kruskal_results %>%
+  filter(p_adj < 0.05) %>%
+  pull(Annotation)
+
+call_sig <- call_long_relative_clean %>%
+  filter(Annotation %in% significant_annotations)
+
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", 
+  "Sugar" = "#ff7f0e", 
+  "Brine" = "#1b9e77",
+  "Soy" = "#d62728", 
+  "Coconut Dairy" = "#9467bd", 
+  "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", 
+  "Seed" = "#7f7f7f",
+  "Palm Tree" = "#17becf"
+)
+#######################################################
+q1 <- ggplot(call_sig, aes(x = Substrate, y = RelativeAbundance, fill = Substrate)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
+  facet_wrap(~ Annotation, scales = "free_y") +
+  scale_fill_manual(values = substrate_colors) +
+  theme_minimal() +
+  labs(
+    title = "Significantly Enriched GBM Pathways Across Substrates",
+    x = "Substrate",
+    y = "Relative Abundance (%)"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    strip.text = element_text(face = "bold", size = 9),
+    legend.position = "none"
+  )
+ggsave("final_figs/section_2/JL_GbM_supplementary.svg", plot = q1, width = 8, height = 6, units = "in")
+#stat
+dunn_results <- call_long_relative_clean %>%
+  group_by(Annotation) %>%
+  dunn_test(RelativeAbundance ~ Substrate, p.adjust.method = "BH") %>%
+  ungroup()
+
+sig_dunn <- dunn_results %>%
+  filter(p.adj < 0.05)
+########################################################################
+a1 <- sig_dunn %>%
+  filter(!is.na(Annotation) & Annotation != "") %>%  # Remove blanks or NAs
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Annotation,
+    ncol = 1,
+    nrow = 3,
+    page = 1, scales = "free_y"  # Change page number as needed
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 7)
+  )
+a2 <- sig_dunn %>%
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Annotation,
+    ncol = 1,  # 1 column
+    nrow = 3,  # 3 rows per page = 3 plots
+    page = 2, scales ="free_y"   # change this to 2, 3, ... for other pages
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 4)
+  )
+a3 <- sig_dunn %>%
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Annotation,
+    ncol = 1,  # 1 column
+    nrow = 3,  # 3 rows per page = 3 plots
+    page = 3, scales = "free_y"   # change this to 2, 3, ... for other pages
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 4)
+  )
+a4 <- sig_dunn %>%
+  mutate(
+    comparison = paste(group1, "vs", group2),
+    significance = case_when(
+      p.adj < 0.001 ~ "***",
+      p.adj < 0.01 ~ "**",
+      p.adj < 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  ggplot(aes(x = reorder(comparison, statistic), y = statistic, fill = significance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    x = "Group Comparison",
+    y = "Test Statistic",
+    fill = "Significance"
+  ) +
+  facet_wrap_paginate(
+    ~ Annotation,
+    ncol = 1,  # 1 column
+    nrow = 3,  # 3 rows per page = 3 plots
+    page = 4, scales = "free_y"   # change this to 2, 3, ... for other pages
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 4)
+  )
+
+ggsave("final_figs/section_2/gbm_jl_lefse_1.svg", plot = a1, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_2/gbm_jl_lefse_2.svg", plot = a2, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_2/gbm_jl_lefse_3.svg", plot = a3, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_2/gbm_jl_lefse_4.svg", plot = a4, width = 8, height = 6, units = "in")
+dunn_matrix <- dunn_results %>%
+  filter(p.adj < 0.05) %>%
+  mutate(pair = paste(group1, "vs", group2)) %>%
+  select(Annotation, pair, p.adj)
+
+# Spread to heatmap style
+library(tidyr)
+dunn_heat <- dunn_matrix %>%
+  pivot_wider(names_from = pair, values_from = p.adj)
+dunn_matrix <- dunn_heat %>%
+  pivot_longer(
+    cols = -Annotation,
+    names_to = "pair",
+    values_to = "p.adj"
+  ) %>%
+  filter(!is.na(p.adj)) %>%
+  separate(pair, into = c("Group1", "Group2"), sep = " vs ")
+
+dunn_matrix <- dunn_matrix %>% filter(p.adj <0.05)
+library(ggplot2)
+library(viridis)  # for a nice color palette
+write.csv(dunn_matrix, "dunn_test_impact_of_substate_GBM_abundance.csv")
+page_number <- 1 
+
+ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Annotation, scales = "free", ncol = 1, nrow = 3, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GMM - Page", page_number),
+    x = " ",
+    y = " "
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    panel.spacing = unit(1, "lines")
+  )
+#############################################################
+#############################################################
+page_number <- 1
+
+p1 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Annotation, scales = "free", ncol = 1, nrow = 3, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GBM - Page", page_number),
+    x = " ",
+    y = " "
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    panel.spacing = unit(1, "lines")
+  )
+ggsave("final_figs/section_2/gbm_dunn_pg_1.svg", plot = p1, width = 8, height = 6, units = "in")
+page_number <- 2
+
+p2 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Annotation, scales = "free", ncol = 1, nrow = 3, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GBM - Page", page_number),
+    x = " ",
+    y = " "
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    panel.spacing = unit(1, "lines")
+  )
+ggsave("final_figs/section_2/gbm_dunn_pg_2.svg", plot = p2, width = 8, height = 6, units = "in")
+page_number <- 3
+p3 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Annotation, scales = "free", ncol = 1, nrow = 3, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GBM - Page", page_number),
+    x = " ",
+    y = " "
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    panel.spacing = unit(1, "lines")
+  )
+ggsave("final_figs/section_2/gbm_dunn_pg_3.svg", plot = p3, width = 8, height = 6, units = "in")
+page_number <- 4
+p4 <- ggplot(dunn_matrix, aes(x = Group1, y = Group2, fill = p.adj)) +
+  geom_tile(color = "white") +
+  facet_wrap_paginate(~ Annotation, scales = "free", ncol = 1, nrow = 3, page = page_number) +
+  scale_fill_viridis(option = "plasma", direction = -1, trans = "log10", name = "Adjusted p-value") +
+  theme_minimal() +
+  labs(
+    title = paste("Pairwise Dunn Test GBM - Page", page_number),
+    x = " ",
+    y = " "
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    panel.spacing = unit(1, "lines")
+  )
+ggsave("final_figs/section_2/gbm_dunn_pg_4.svg", plot = p4, width = 8, height = 6, units = "in")
