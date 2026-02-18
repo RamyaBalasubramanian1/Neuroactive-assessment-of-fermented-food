@@ -1,0 +1,2234 @@
+
+#install.packages("purrr")
+library(purrr)
+library(tidyverse)
+library(ComplexHeatmap)
+library(tibble)
+library(dplyr)
+#BiocManager::install("ComplexHeatmap")
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+anno <- read.csv("tryp_anno.csv")
+wk <- read.table("wk_unstrat.txt", sep = "\t", header = TRUE)
+mk <- read.table("mk_unstrat_mod.txt", sep = "\t", header = TRUE)
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+bai <- read.table("baijiu_unstrat.txt", sep = "\t", header = TRUE)
+kom <- read.table("kombucha_unstrat.txt", sep = "\t", header = TRUE)
+kin <- read.table("kinema_unstrat.txt", sep = "\t", header = TRUE)
+fs <- read.table("fs_unstrat.txt", sep = "\t", header = TRUE)
+aff <- read.table("aff_unstrat.txt", sep = "\t", header = TRUE)
+pau <- read.table("paula_unstrat.txt", sep = "\t", header = TRUE)
+######################################
+tryp_ko <- read.csv("tryp_meta.csv")
+all <- list(wk, mk, bai, kom, kin, fs, aff, pau)
+all <- reduce(all, full_join, by = "KO")
+
+any(duplicated(all$KO))
+
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+################################
+all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
+all <- all[, !(colnames(all) == "AF90")]#low sequencing depth
+#################################
+all[is.na(all)] <- 0
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+#################################
+
+library(tidyverse)
+
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0")  # Replace NA with "0"
+###################
+all$KO <- trimws(as.character(all$KO))
+tryp$KO <- trimws(as.character(tryp$KO))
+#####################
+valid_kos <- unique(tryp$KO)
+
+all <- all[all$KO %in% valid_kos, ]
+any(duplicated(all$KO))
+###################################################
+###################################################
+tryp_unique <- tryp %>%
+  distinct(KO, .keep_all = TRUE)
+
+all <- all %>%
+  left_join(tryp_unique, by = "KO")
+
+any(duplicated(all$KO))
+
+sample_names <- colnames(all)[!(colnames(all) %in% c("KO", "compound"))]
+
+meta_filtered <- meta[meta$ID %in% sample_names, ]
+any(duplicated(all$KO))
+###############################
+library(pheatmap)
+library(dplyr)
+library(Tjazi)
+
+ko_matrix <- all %>%
+  column_to_rownames("KO") %>%
+  select(-compound)
+
+#####################
+# Make sure it's a data frame and numeric
+ko_matrix <- t(ko_matrix)
+pa <- ko_matrix #using this for pa heatmap lateron
+pa_binary <- pa
+pa_binary[] <- ifelse(pa > 0, 1, 0)#for jaccard lateron
+#####################################
+ko_matrix <- as.data.frame(ko_matrix)
+ko_matrix[] <- lapply(ko_matrix, function(x) as.numeric(as.character(x))) 
+
+# Replace NA with 0 (if needed)
+ko_matrix[is.na(ko_matrix)] <- 0
+
+
+n_zeroes <- rowSums(ko_matrix == 0)
+ko_matrix <- ko_matrix[n_zeroes <= round(ncol(ko_matrix) * 0.90),]
+
+ko_matrix <- clr_c(ko_matrix)
+rownames(ko_matrix) <- gsub("\\.", "-", rownames(ko_matrix))
+ko_matrix <- ko_matrix[,-62]#removing row with all NA ans the KO allocation for that column was all zero
+data.a.pca <- prcomp(ko_matrix)
+###############################
+pc1 <- round(data.a.pca$sdev[1]^2/sum(data.a.pca$sdev^2),4) * 100
+pc2 <- round(data.a.pca$sdev[2]^2/sum(data.a.pca$sdev^2),4) * 100
+pc3 <- round(data.a.pca$sdev[3]^2/sum(data.a.pca$sdev^2),4) * 100
+pc4 <- round(data.a.pca$sdev[4]^2/sum(data.a.pca$sdev^2),4) * 100
+pca = data.frame(PC1 = data.a.pca$x[,1],
+                 PC2 = data.a.pca$x[,2],
+                 PC3 = data.a.pca$x[,3],
+                 PC4 = data.a.pca$x[,4])
+
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(ko_matrix), ]
+extra_meta <- setdiff( rownames(ko_matrix), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+ko_matrix <- ko_matrix[!rownames(ko_matrix) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(ko_matrix), meta_filtered$ID)
+length(extra_meta)#santy
+##################################
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(ko_matrix), ]
+meta_filtered <- meta_filtered[match(rownames(ko_matrix), meta_filtered$ID), ]
+meta_filtered <- meta_filtered[complete.cases(meta_filtered), ]
+pca <- pca[rownames(pca) %in% rownames(ko_matrix), ]
+
+pca$ID <- meta_filtered$ID
+pca$Substrate <- meta_filtered$Substrate
+pca$State <- meta_filtered$State
+pca$TOF <- meta_filtered$Type.of.fermentation
+#############################################
+#PLOTTY
+pca$ID <- rownames(pca)
+
+
+p <- ggplot(pca, aes(x = PC1, y = PC2, fill = Substrate)) +
+  geom_point(shape = 21,    # filled circle with outline
+             size = 3,
+             color = "black",  # border stays black
+             stroke = 0.7) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "tryptophan metabolite composition of fermented foods",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+
+ggsave("final_figs/section_2/pca_trypnet_plot.svg", plot = p, width = 8, height = 6, units = "in")
+
+clr_dist <- dist(ko_matrix, method = "euclidean")
+adonis_result <- adonis2(clr_dist ~ Substrate+Type.of.fermentation+State, data = meta_filtered, method = "eucledian", permutations = 999, by = "term")
+print(adonis_result)
+##########################################################
+comp_transformed <- scale(ko_matrix / log(2), center = TRUE, scale = FALSE)
+tryp <- tryp %>% rename(KEGG = compound)
+anno_2 <-merge(anno, tryp, by = "KEGG")
+
+all(colnames(ko_matrix) %in% anno_2$KO)  # Should be TRUE for all or subset
+library(ComplexHeatmap)
+library(dplyr)
+all(rownames(ko_matrix) %in% meta_filtered$ID) 
+
+ko_to_metabolite <- anno_2 %>%
+  distinct(KO, Metabolite) %>%
+  filter(KO %in% colnames(ko_matrix)) %>%
+  tibble::deframe()
+
+column_annots <- ko_to_metabolite[colnames(ko_matrix)]
+
+meta_ordered <- meta_filtered[match(rownames(ko_matrix), meta_filtered$ID), ]
+
+row_anno <- rowAnnotation(
+  Substrate = meta_ordered$Substrate,
+  col = list(Substrate = substrate_colors),
+  annotation_name_side = "bottom",
+  show_annotation_name = TRUE
+)
+col_fun <- colorRamp2(
+  c(min(ko_matrix), 0, max(ko_matrix)),
+  c("blue", "white", "red")
+)
+# Make HeatmapAnnotation object
+col_anno <- HeatmapAnnotation(
+  Metabolite = column_annots,
+  annotation_name_side = "right",
+  gp = gpar(fontsize = 4)
+)
+ht <- Heatmap(
+  as.matrix(ko_matrix),
+  name = "CLR Abundance",
+  col = col_fun,
+  top_annotation = col_anno,
+  left_annotation = row_anno,
+  cluster_columns = FALSE,          # Don't reorder within metabolite blocks
+  cluster_rows = FALSE,
+  show_column_names = FALSE,
+  show_row_names = FALSE,
+  row_names_side = "left",
+  column_names_rot = 45,
+  row_split = meta_ordered$Substrate,
+  row_title = NULL,
+  column_split = column_annots, column_title =NULL, border=TRUE      # 👈 Group all KOs by Metabolite
+)
+
+draw(ht)
+png("C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/ko_heatmap.png",
+    width = 12,       # in inches
+    height = 10,      # in inches
+    units = "in",     
+    res = 300         # 300 DPI for publication quality
+)
+
+dev.off()
+###############################################
+library(ComplexHeatmap)
+library(circlize)
+
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f", "Palm Tree" = "#B565A7"
+)
+
+pa_binary <- ifelse(pa > 0, 1, 0)
+
+ko_to_metabolite <- anno_2[!duplicated(anno_2$KO), c("KO", "Metabolite")]
+column_annots <- ko_to_metabolite$Metabolite
+names(column_annots) <- ko_to_metabolite$KO
+column_annots <- column_annots[colnames(pa_binary)]
+a_filtered[match(rownames(pa_binary), meta_filtered$ID), ]
+
+row_anno <- rowAnnotation(
+  Substrate = meta_ordered$Substrate,
+  col = list(Substrate = substrate_colors),
+  annotation_name_side = "bottom",
+  show_annotation_name = TRUE
+)
+
+col_anno <- HeatmapAnnotation(
+  Metabolite = column_annots,
+  annotation_name_side = "right",
+  gp = gpar(fontsize = 4)
+)
+
+bw_col_fun <- colorRamp2(c(0, 1), c("white", "black"))
+
+ht1 <- Heatmap(
+  as.matrix(pa_binary),
+  name = "Presence",
+  col = bw_col_fun,
+  top_annotation = col_anno,
+  left_annotation = row_anno,
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  show_column_names = FALSE,
+  show_row_names = FALSE,
+  row_names_side = "left",
+  column_names_rot = 45,
+  row_split = meta_ordered$Substrate,
+  row_title = NULL,
+  column_split = column_annots,
+  column_title = NULL,
+  border = TRUE
+)
+
+setwd("final_figs/section_4")
+svg("trypnet.svg", width = 10, height = 9) 
+draw(ht1)
+dev.off()
+#################################
+richness_table <- data.frame(
+  Sample = rownames(pa_binary),
+  Richness = rowSums(pa_binary)
+)
+###############
+
+ko_to_metabolite <- anno_2[!duplicated(anno_2$KO), c("KO", "Metabolite")]
+column_annots <- ko_to_metabolite$Metabolite
+names(column_annots) <- ko_to_metabolite$KO
+column_annots <- column_annots[colnames(pa_binary)]
+
+meta_ordered <- meta_filtered[match(rownames(pa_binary), meta_filtered$ID), ]
+richness_ordered <- richness_table[match(rownames(pa_binary), richness_table$Sample), ]
+
+row_anno <- rowAnnotation(
+  Substrate = meta_ordered$Substrate,
+  Richness = anno_points(
+    richness_ordered$Richness,
+    gp = gpar(col = "red", cex = 0.5),
+    axis = TRUE,
+    axis_side = "top"
+  ),
+  col = list(Substrate = substrate_colors),
+  annotation_name_side = "top"  # <-- optional
+)
+
+col_anno <- HeatmapAnnotation(
+  Metabolite = column_annots,
+  annotation_name_side = "right",
+  gp = gpar(fontsize = 4)
+)
+
+bw_col_fun <- colorRamp2(c(0, 1), c("white", "black"))
+
+ht1 <- Heatmap(
+  as.matrix(pa_binary),
+  name = "Presence",
+  col = bw_col_fun,
+  top_annotation = col_anno,
+  left_annotation = row_anno,
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  show_column_names = FALSE,
+  show_row_names = FALSE,
+  row_names_side = "left",
+  column_names_rot = 45,
+  row_split = meta_ordered$Substrate,
+  row_title = NULL,
+  column_split = column_annots,
+  column_title = NULL,
+  border = TRUE
+)
+setwd("final_figs/section_4")
+svg("trypnet.svg", width = 10, height = 9) 
+draw(ht1)
+dev.off()
+##############################
+richness_table_2 <- richness_table
+colnames(richness_table_2)[colnames(richness_table_2)=="Sample"] <- "ID"
+all <- merge(richness_table_2, meta_ordered, by = "ID")
+p <- ggplot(all, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(color = "black", outlier.shape = NA) +
+  geom_jitter(shape = 21,
+              color = "black",
+              size = 2,
+              stroke = 0.5,
+              width = 0.2) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    x = "Substrate",
+    y = "Richness",
+    title = "Richness by Substrate with Sample Distribution"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.position = "none"
+  )
+ggsave("final_figs/section_4/richness_trypnet_plot.svg", plot = p, width = 8, height = 6, units = "in")
+shapiro.test(all$Richness)
+kruskal.test(Richness ~ Substrate, data = all)
+kruskal.test(Richness ~ State, data = all)
+kruskal.test(Type.of.fermentation ~ Richness, data = all)
+
+all %>%
+  kruskal_effsize(Richness ~ Substrate)
+
+all %>%
+  kruskal_effsize(Richness ~ State)
+
+
+all %>%
+  kruskal_effsize(Richness ~ Type.of.fermentation)
+###############################################################################
+library(multcompView)
+dunn_result <- dunnTest(Richness ~ Substrate, data = all, method = "bh")
+sig_pairs <- dunn_result$res %>%                                      # only significant
+  separate(Comparison, into = c("group1", "group2"), sep = " - ") %>%
+  mutate(
+    label = case_when(
+      P.adj < 0.001 ~ "***",
+      P.adj < 0.01 ~ "**",
+      P.adj < 0.05 ~ "*",  
+      P.adj > 0.05 ~ "NS"
+    ),
+    y.position = 20 + row_number() 
+  )
+
+get_cld_letters <- function(sig_pairs_df) {
+  groups <- unique(c(sig_pairs_df$group1, sig_pairs_df$group2))
+  p_mat <- matrix(1, nrow=length(groups), ncol=length(groups),
+                  dimnames = list(groups, groups))
+  for (i in 1:nrow(sig_pairs_df)) {
+    g1 <- sig_pairs_df$group1[i]
+    g2 <- sig_pairs_df$group2[i]
+    p_val <- sig_pairs_df$P.adj[i]
+    p_mat[g1, g2] <- p_val
+    p_mat[g2, g1] <- p_val
+  }
+  sig_matrix <- p_mat < 0.05
+  rownames(sig_matrix) <- colnames(sig_matrix) <- groups
+  cld <- multcompView::multcompLetters(sig_matrix)$Letters
+  return(data.frame(Substrate = names(cld), Letters = cld))
+}
+
+letters_df <- get_cld_letters(sig_pairs)
+
+plot_data <- all %>%
+  left_join(letters_df, by = "Substrate")
+
+label_positions <- plot_data %>%
+  group_by(Substrate) %>%
+  summarise(y = max(Richness, na.rm = TRUE) + 1)
+
+plot_data <- left_join(plot_data, label_positions, by = "Substrate")
+
+kw_label <- "Kruskal-Wallis, p < 0.001"
+
+p_final <- ggplot(plot_data, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  geom_text(aes(y = y, label = Letters), vjust = 0, size = 5) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.3),
+    legend.position = "none"
+  ) +
+  annotate("label", 
+           x = 4, 
+           y = max(all$Richness, na.rm = TRUE) - 0.1, 
+           label = kw_label,
+           size = 4, fontface = "bold", fill = "white", color = "black") +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0.06, 0.05))
+  )
+
+ggsave(filename = "final_figs/section_4/trypnet_richness_pairwise_alpahbet_sphaghetti.svg", plot = p_final, width = 12, height = 6, units = "in", dpi = 300, device = "svg")
+
+
+###############################################################################
+p <- ggplot(all, aes(x = State, y = Richness, fill = State)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave("final_figs/section_4/richness_trypnet_state_plot.svg", plot = p, width = 8, height = 6, units = "in")
+######################
+all <- all %>% filter(Type.of.fermentation != "Not applicable" )
+p <- ggplot(all, aes(x = Type.of.fermentation, y = Richness, fill = Type.of.fermentation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave("final_figs/section_4/richness_trypnet_TOF_plot.svg", plot = p, width = 8, height = 6, units = "in")
+######################################
+
+########################################
+pa_binary <- pa_binary[rowSums(pa_binary) > 0, ]
+
+jaccard_dist <- vegdist(pa_binary, method = "jaccard", binary = TRUE)
+meta_filtered <- meta[rownames(pa_binary), ]
+
+meta_filtered <- meta[meta$ID %in% rownames(pa_binary), ]
+
+meta_filtered <- meta_filtered[match(rownames(pa_binary), meta_filtered$ID), ]
+
+pcoa_result <- cmdscale(jaccard_dist, k = 2, eig = TRUE)
+
+pcoa_df <- data.frame(
+  SampleID = rownames(pcoa_result$points),
+  PC1 = pcoa_result$points[, 1],
+  PC2 = pcoa_result$points[, 2],
+  Substrate = meta_filtered$Substrate
+)
+
+p <- ggplot(pcoa_df, aes(x = PC1, y = PC2, fill = Substrate)) +
+  geom_point(shape = 21, size = 3, stroke = 0.7, color = "black") +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "PCoA (Jaccard distance) of Presence/Absence KO profiles",
+    x = "PCoA Axis 1",
+    y = "PCoA Axis 2"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+ggsave("final_figs/section_4/richness_trypnet_jacc_pca.svg", plot = p, width = 8, height = 6, units = "in")
+###########################################################
+###########################################################
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+#install.packages("coloRamPalette")
+#library(colorRampPalette)
+# Install the circlize package if not already installed
+# if (!requireNamespace("circlize", quietly = TRUE)) {
+#   install.packages("circlize")
+# }
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(factoextra)) install.packages("factoextra")
+library(gridExtra)
+library(ggplot2)
+library(factoextra)
+install.packages("kableExtra")
+library(kableExtra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+library(compositions)
+library(Tjazi)
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+install.packages("networkD3")
+library(networkD3)
+#install.packages("ggraph")
+#install.packages("igraph")
+library(ggraph)
+library(igraph)
+library(ggplot2)
+library(patchwork)
+####################################################
+####################################################
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+install.packages("coloRamPalette")
+library(colorRampPalette)
+# Install the circlize package if not already installed
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(factoextra)) install.packages("factoextra")
+library(gridExtra)
+library(ggplot2)
+library(factoextra)
+install.packages("kableExtra")
+library(kableExtra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+library(compositions)
+library(Tjazi)
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+install.packages("networkD3")
+library(networkD3)
+#install.packages("ggraph")
+#install.packages("igraph")
+library(ggraph)
+library(igraph)
+library(ggplot2)
+library(patchwork)
+library(tidyverse)
+########################
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+#############################
+mk_strat <- read.table(
+  "mk_strat.txt",
+  header = TRUE,
+  sep = "\t",    # or change to " " if space-delimited
+  fill = TRUE,   # fills missing columns with NAs
+  quote = "",
+  comment.char = ""
+)
+mk_remove <- read.csv("C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk_strat) <- gsub("\\.", "-", colnames(mk_strat))
+
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+##################################################
+##################################################
+mk_strat$KO <- as.character(mk_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+mk_strat_filtered <- mk_strat[mk_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+colnames(mk_strat_filtered)[-c(1,2)] <- sub("_interleaved.*", "", colnames(mk_strat_filtered)[-c(1,2)])
+mk_strat_filtered <- mk_strat_filtered[, !(colnames(mk_strat_filtered) %in% removed_samples)]
+##################################################
+linked_data <- mk_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>% 
+  colnames()
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  group_by(Species, Metabolite) %>%
+  summarise(total_abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  filter(total_abundance > 0)
+long_data <- long_data %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+##################################################################################
+##################################################################################
+
+nodes <- data.frame(name = unique(c(long_data$Species, long_data$Metabolite)))
+
+long_data$source <- match(long_data$Species, nodes$name) - 1
+long_data$target <- match(long_data$Metabolite, nodes$name) - 1
+
+nodes$type <- ifelse(nodes$name %in% long_data$Species, "Species", "Metabolite")
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  "#B0B0B0" 
+)
+
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([", 
+  paste0('"', nodes$name, '"', collapse = ","), 
+  "]).range([", 
+  paste0('"', nodes$color, '"', collapse = ","), 
+  "])"
+)
+
+
+mk <- sankeyNetwork(
+  Links = long_data %>% select(source, target, value = total_abundance),
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(mk, "final_figs/section_4/sankey_plot_mk.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_mk.html", file = "final_figs/section_4/sankey_plot_mk.pdf", selector = "pdf")
+
+######################################################################
+######################################################################
+wk_strat <- read.table(
+  "wk_strat.txt",
+  header = TRUE,
+  sep = "\t",   
+  fill = TRUE,   #
+  quote = "",
+  comment.char = ""
+)
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+##################################################
+##################################################
+wk_strat$KO <- as.character(wk_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+wk_strat_filtered <- wk_strat[wk_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+##################################################
+
+linked_data <- wk_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>% 
+  colnames()
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  group_by(Species, Metabolite) %>%
+  summarise(total_abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  filter(total_abundance > 0)
+long_data <- long_data %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+###########
+
+nodes <- data.frame(name = unique(c(long_data$Species, long_data$Metabolite)))
+
+long_data$source <- match(long_data$Species, nodes$name) - 1
+long_data$target <- match(long_data$Metabolite, nodes$name) - 1
+
+nodes$type <- ifelse(nodes$name %in% long_data$Species, "Species", "Metabolite")
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+# Step 3: Ass
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  "#B0B0B0" # default gray for species
+)
+
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([", 
+  paste0('"', nodes$name, '"', collapse = ","), 
+  "]).range([", 
+  paste0('"', nodes$color, '"', collapse = ","), 
+  "])"
+)
+
+wk <-sankeyNetwork(
+  Links = long_data %>% select(source, target, value = total_abundance),
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(wk, "final_figs/section_4/sankey_plot_wk.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_wk.html", file = "final_figs/section_4/sankey_plot_wk.pdf", selector = "pdf")
+
+########
+########################################################################
+########################################################################
+kom_strat <- read.table(
+  "kombucha/strat.txt",
+  header = TRUE,
+  sep = "\t",    # or change to " " if space-delimited
+  fill = TRUE,   # fills missing columns with NAs
+  quote = "",
+  comment.char = ""
+)
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+##################################################
+##################################################
+kom_strat$KO <- as.character(kom_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+kom_strat_filtered <- kom_strat[kom_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+##################################################
+
+linked_data <- kom_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>% 
+  colnames()
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  group_by(Species, Metabolite) %>%
+  summarise(total_abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  filter(total_abundance > 0)
+long_data <- long_data %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+###########
+
+
+nodes <- data.frame(name = unique(c(long_data$Species, long_data$Metabolite)))
+
+#
+long_data$source <- match(long_data$Species, nodes$name) - 1
+long_data$target <- match(long_data$Metabolite, nodes$name) - 1
+
+nodes$type <- ifelse(nodes$name %in% long_data$Species, "Species", "Metabolite")
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  "#B0B0B0" # default gray for species
+)
+
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([", 
+  paste0('"', nodes$name, '"', collapse = ","), 
+  "]).range([", 
+  paste0('"', nodes$color, '"', collapse = ","), 
+  "])"
+)
+
+kom <- sankeyNetwork(
+  Links = long_data %>% select(source, target, value = total_abundance),
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(kom, "final_figs/section_4/sankey_plot_kom.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_kom.html", file = "final_figs/section_4/sankey_plot_kom.pdf", selector = "pdf")
+
+########
+#####################
+#####################
+kin_strat <- read.table(
+  "kinema_strat.txt",
+  header = TRUE,
+  sep = "\t",    # or change to " " if space-delimited
+  fill = TRUE,   # fills missing columns with NAs
+  quote = "",
+  comment.char = ""
+)
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+##################################################
+##################################################
+kin_strat$KO <- as.character(kin_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+kin_strat_filtered <- kin_strat[kin_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+##################################################
+
+linked_data <- kin_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>% 
+  colnames()
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  group_by(Species, Metabolite) %>%
+  summarise(total_abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  filter(total_abundance > 0)
+long_data <- long_data %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+###########
+library(dplyr)
+library(networkD3)
+
+# Cr
+nodes <- data.frame(name = unique(c(long_data$Species, long_data$Metabolite)))
+
+long_data$source <- match(long_data$Species, nodes$name) - 1
+long_data$target <- match(long_data$Metabolite, nodes$name) - 1
+
+nodes$type <- ifelse(nodes$name %in% long_data$Species, "Species", "Metabolite")
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  "#B0B0B0" # default gray for species
+)
+
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([", 
+  paste0('"', nodes$name, '"', collapse = ","), 
+  "]).range([", 
+  paste0('"', nodes$color, '"', collapse = ","), 
+  "])"
+)
+
+kin <- sankeyNetwork(
+  Links = long_data %>% select(source, target, value = total_abundance),
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(kin, "final_figs/section_4/sankey_plot_kin.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_kin.html", file = "final_figs/section_4/sankey_plot_kin.pdf", selector = "pdf")
+
+################################################################################
+################################################################################
+bai_strat <- read.table(
+  "baijiu/strat.txt",
+  header = TRUE,
+  sep = "\t",    # or change to " " if space-delimited
+  fill = TRUE,   # fills missing columns with NAs
+  quote = "",
+  comment.char = ""
+)
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+##################################################
+##################################################
+bai_strat$KO <- as.character(bai_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+bai_strat_filtered <- bai_strat[bai_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+##################################################
+
+linked_data <- bai_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>% 
+  colnames()
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  group_by(Species, Metabolite) %>%
+  summarise(total_abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  filter(total_abundance > 0)
+long_data <- long_data %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+###########
+library(dplyr)
+library(networkD3)
+
+nodes <- data.frame(name = unique(c(long_data$Species, long_data$Metabolite)))
+
+long_data$source <- match(long_data$Species, nodes$name) - 1
+long_data$target <- match(long_data$Metabolite, nodes$name) - 1
+
+nodes$type <- ifelse(nodes$name %in% long_data$Species, "Species", "Metabolite")
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  "#B0B0B0" # default gray for species
+)
+
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([", 
+  paste0('"', nodes$name, '"', collapse = ","), 
+  "]).range([", 
+  paste0('"', nodes$color, '"', collapse = ","), 
+  "])"
+)
+
+bai <- sankeyNetwork(
+  Links = long_data %>% select(source, target, value = total_abundance),
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+#########################################
+htmlwidgets::saveWidget(bai, "final_figs/section_4/sankey_plot_bai.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_bai.html", file = "final_figs/section_4/sankey_plot_bai.pdf", selector = "pdf")
+
+##########################################
+fs_strat <- read.table(
+  "FS_strat.txt",
+  header = TRUE,
+  sep = "\t",    # or change to " " if space-delimited
+  fill = TRUE,   # fills missing columns with NAs
+  quote = "",
+  comment.char = ""
+)
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+fs_strat$KO <- as.character(fs_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+fs_strat_filtered <- fs_strat[fs_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+##################################################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#####################################################
+linked_data <- fs_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+###################
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>%
+  colnames()
+sample_cols <- linked_data %>% select(where(is.numeric)) %>% colnames()
+clean_sample_ids <- gsub("_interleaved_Abundance\\.RPKs", "", sample_cols)
+
+sample_prefixes <- gsub("^(FS[0-9A-Z]+)_.*", "\\1", clean_sample_ids)
+
+
+id_map <- data.frame(
+  Sample = clean_sample_ids,
+  ID = sample_prefixes,
+  stringsAsFactors = FALSE
+)
+
+meta_subset <- meta %>%
+  inner_join(id_map, by = "ID")
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  mutate(Sample = gsub("_interleaved_Abundance\\.RPKs", "", Sample)) %>%
+  filter(Abundance > 0)
+
+long_data_annotated <- long_data %>%
+  left_join(meta_subset %>% select(Sample, Substrate, Fermented.food.category, Type.of.fermentation), 
+            by = "Sample")
+
+long_data <- long_data %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+
+#sugar_data <- long_data_annotated %>%
+# filter(Substrate == "Sugar", Abundance > 0)
+
+selected_substrate <- "Sauerkraut"  # Change as needed
+sankey_data <- long_data_annotated %>%
+  filter(Fermented.food.category == selected_substrate, Abundance > 0)
+##########################################
+food_species <- sankey_data %>%
+  group_by(Fermented.food.category, Species) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+species_metabolite <- sankey_data %>%
+  group_by(Species, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+###############################################################################
+###############################################################################
+
+nodes <- data.frame(name = unique(c(
+  food_species$Fermented.food.category,
+  food_species$Species,
+  species_metabolite$Metabolite
+)))
+nodes$type <- dplyr::case_when(
+  nodes$name %in% food_species$Fermented.food.category ~ "Category",
+  nodes$name %in% food_species$Species ~ "Species",
+  nodes$name %in% species_metabolite$Metabolite ~ "Metabolite",
+  TRUE ~ "Other"
+)
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "Species", "#B0B0B0", "#999999")  # Default gray for others
+)
+
+food_species <- food_species %>%
+  mutate(source = match(Fermented.food.category, nodes$name) - 1,
+         target = match(Species, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Species, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  food_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])"
+)
+
+sau <- sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+#################
+htmlwidgets::saveWidget(sau, "final_figs/section_4/sankey_plot_sau.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_sau.html", file = "final_figs/section_4/sankey_plot_sau.pdf", selector = "pdf")
+
+#######################################################################
+selected_substrate <- "Beetroot kvass"  # Change as needed
+sankey_data <- long_data_annotated %>%
+  filter(Fermented.food.category == selected_substrate, Abundance > 0)
+##########################################
+food_species <- sankey_data %>%
+  group_by(Fermented.food.category, Species) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+species_metabolite <- sankey_data %>%
+  group_by(Species, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  food_species$Fermented.food.category,
+  food_species$Species,
+  species_metabolite$Metabolite
+)))
+nodes$type <- dplyr::case_when(
+  nodes$name %in% food_species$Fermented.food.category ~ "Category",
+  nodes$name %in% food_species$Species ~ "Species",
+  nodes$name %in% species_metabolite$Metabolite ~ "Metabolite",
+  TRUE ~ "Other"
+)
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "Species", "#B0B0B0", "#999999")  # Default gray for others
+)
+
+food_species <- food_species %>%
+  mutate(source = match(Fermented.food.category, nodes$name) - 1,
+         target = match(Species, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Species, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  food_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])"
+)
+
+kvass <- sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+####################################
+htmlwidgets::saveWidget(kvass, "final_figs/section_4/sankey_plot_kvass.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_kvass.html", file = "final_figs/section_4/sankey_plot_kvass.pdf", selector = "pdf")
+
+###########################################
+selected_substrate <- "Kimchi"  # Change as needed
+sankey_data <- long_data_annotated %>%
+  filter(Fermented.food.category == selected_substrate, Abundance > 0)
+##########################################
+food_species <- sankey_data %>%
+  group_by(Fermented.food.category, Species) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+species_metabolite <- sankey_data %>%
+  group_by(Species, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  food_species$Fermented.food.category,
+  food_species$Species,
+  species_metabolite$Metabolite
+)))
+nodes$type <- dplyr::case_when(
+  nodes$name %in% food_species$Fermented.food.category ~ "Category",
+  nodes$name %in% food_species$Species ~ "Species",
+  nodes$name %in% species_metabolite$Metabolite ~ "Metabolite",
+  TRUE ~ "Other"
+)
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "Species", "#B0B0B0", "#999999")  # Default gray for others
+)
+
+food_species <- food_species %>%
+  mutate(source = match(Fermented.food.category, nodes$name) - 1,
+         target = match(Species, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Species, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  food_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])"
+)
+
+kimchi <-sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(kimchi, "final_figs/section_4/sankey_plot_kimchi.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_kimchi.html", file = "final_figs/section_4/sankey_plot_kimchi.pdf", selector = "pdf")
+
+######################################
+######################################
+
+selected_substrate <- "Dairy"
+sankey_data <- long_data_annotated %>%
+  filter(Substrate == selected_substrate, Abundance > 0)
+
+cat_species <- sankey_data %>%
+  group_by(`Fermented.food.category`, Species) %>%
+  summarise(value = sum(Abundance), .groups = "drop") %>%
+  rename(Category = `Fermented.food.category`)
+
+species_metabolite <- sankey_data %>%
+  group_by(Species, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  cat_species$Category,
+  cat_species$Species,
+  species_metabolite$Metabolite
+)))
+
+cat_species <- cat_species %>%
+  mutate(source = match(Category, nodes$name) - 1,
+         target = match(Species, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Species, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  cat_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+
+dairy <- sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+########################################################
+htmlwidgets::saveWidget(dairy, "final_figs/section_4/sankey_plot_dairy_fs.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_dairy_fs.html", file = "final_figs/section_4/sankey_plot_dairy_fs.pdf", selector = "pdf")
+
+########################################################
+
+selected_substrate <- "Brine"
+sankey_data <- long_data_annotated %>%
+  filter(Substrate == selected_substrate, Abundance > 0)
+
+cat_species <- sankey_data %>%
+  group_by(`Fermented.food.category`, Species) %>%
+  summarise(value = sum(Abundance), .groups = "drop") %>%
+  rename(Category = `Fermented.food.category`)
+
+species_metabolite <- sankey_data %>%
+  group_by(Species, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  cat_species$Category,
+  cat_species$Species,
+  species_metabolite$Metabolite
+)))
+
+cat_species <- cat_species %>%
+  mutate(source = match(Category, nodes$name) - 1,
+         target = match(Species, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Species, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  cat_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+
+sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+##########################################
+pau_strat <- read.table(
+  "paula_strat.txt",
+  header = TRUE,
+  sep = "\t", 
+  fill = TRUE,   
+  quote = "",
+  comment.char = ""
+)
+################
+
+new_names <- colnames(pau_strat)
+new_names[3:length(new_names)] <- substr(new_names[3:length(new_names)], 1, 14)
+
+colnames(pau_strat) <- new_names
+
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+##################################################
+##################################################
+pau_strat$KO <- as.character(pau_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+pau_strat_filtered <- pau_strat[pau_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+##################################################
+
+linked_data <- pau_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+##################
+head(linked_data)
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>% 
+  colnames()
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  group_by(Species, Metabolite) %>%
+  summarise(total_abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  filter(total_abundance > 0)
+
+
+long_data <- long_data %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+
+nodes <- data.frame(name = unique(c(long_data$Species, long_data$Metabolite)))
+
+long_data$source <- match(long_data$Species, nodes$name) - 1
+long_data$target <- match(long_data$Metabolite, nodes$name) - 1
+
+nodes$type <- ifelse(nodes$name %in% long_data$Species, "Species", "Metabolite")
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  "#B0B0B0" # default gray for species
+)
+
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([", 
+  paste0('"', nodes$name, '"', collapse = ","), 
+  "]).range([", 
+  paste0('"', nodes$color, '"', collapse = ","), 
+  "])"
+)
+
+pau <- sankeyNetwork(
+  Links = long_data %>% select(source, target, value = total_abundance),
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+#########################################
+htmlwidgets::saveWidget(pau, "final_figs/section_4/sankey_plot_pau.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_pau.html", file = "final_figs/section_4/sankey_plot_pau.pdf", selector = "pdf")
+##################################
+
+data_long <- linked_data %>%
+  pivot_longer(
+    cols = starts_with("PFG"),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  mutate(
+    MilkType = case_when(
+      grepl("CoM", Sample) ~ "Coconut Milk",
+      grepl("SM", Sample) ~ "Soy Milk",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  filter(!is.na(MilkType))
+
+
+data_long <- data_long %>%
+  filter(Species != "unclassified") %>%
+  mutate(Species = sub(".*s__", "", Species))
+
+sankey_data <- data_long %>%
+  group_by(MilkType, Species, Metabolite) %>%
+  summarise(total_abundance = sum(Abundance, na.rm = TRUE), .groups = "drop") %>%
+  filter(total_abundance > 0)
+
+nodes <- data.frame(name = unique(c(sankey_data$MilkType, sankey_data$Species, sankey_data$Metabolite)))
+
+sankey_links <- bind_rows(
+  sankey_data %>% transmute(source = match(MilkType, nodes$name) - 1,
+                            target = match(Species, nodes$name) - 1,
+                            value = total_abundance),
+  sankey_data %>% transmute(source = match(Species, nodes$name) - 1,
+                            target = match(Metabolite, nodes$name) - 1,
+                            value = total_abundance)
+)
+
+nodes$type <- case_when(
+  nodes$name %in% sankey_data$MilkType ~ "MilkType",
+  nodes$name %in% sankey_data$Species ~ "Species",
+  nodes$name %in% sankey_data$Metabolite ~ "Metabolite"
+)
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "MilkType" & nodes$name == "Coconut Milk", "#9467bd",
+         ifelse(nodes$type == "MilkType" & nodes$name == "Soy Milk", "#d62728", "#B0B0B0"))
+)
+
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])")
+
+pau_strat  <- sankeyNetwork(
+  Links = sankey_links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+
+pau_strat
+htmlwidgets::saveWidget(pau_strat, "final_figs/section_4/sankey_plot_pau.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_pau.html", file = "final_figs/section_4/sankey_plot_pau.pdf", selector = "pdf")
+##############################################################
+##############################################################
+###############################
+###############################
+aff_strat <- read.table(
+  "aff_strat.txt",
+  header = TRUE,
+  sep = "\t",    # or change to " " if space-delimited
+  fill = TRUE,   # fills missing columns with NAs
+  quote = "",
+  comment.char = ""
+)
+anno <- read.csv("tryp_anno.csv")
+tryp_ko <- read.csv("tryp_meta.csv")
+tryp <- tryp_ko %>%
+  pivot_longer(
+    cols = starts_with("KO"),
+    names_to = "KO_number",
+    values_to = "KO"
+  ) %>%
+  select(compound, KO) %>%
+  filter(!is.na(KO), KO !="0") 
+aff_strat$KO <- as.character(aff_strat$KO)
+tryp$KO <- as.character(tryp$KO)
+aff_strat_filtered <- aff_strat[aff_strat$KO %in% tryp$KO, ]
+colnames(anno)[colnames(anno)=="KEGG"] <- "compound"
+anno_2 <- merge(anno, tryp, by ="compound")
+anno_2 <- anno_2[,-3]
+##################################################
+##################################################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#####################################################
+linked_data <- aff_strat_filtered %>%
+  inner_join(tryp, by = "KO")
+##############################################
+
+linked_data <- linked_data %>%
+  inner_join(anno, by = "compound")
+###################
+
+abundance_cols <- linked_data %>%
+  select(where(is.numeric)) %>%
+  colnames()
+sample_cols <- linked_data %>% select(where(is.numeric)) %>% colnames()
+clean_sample_ids <- gsub("_interleaved_Abundance\\.RPKs", "", sample_cols)
+
+sample_prefixes <- gsub("^(AF[0-9A-Z]+)_.*", "\\1", clean_sample_ids)
+
+id_map <- data.frame(
+  Sample = clean_sample_ids,
+  ID = sample_prefixes,
+  stringsAsFactors = FALSE
+)
+
+meta_subset <- meta %>%
+  inner_join(id_map, by = "ID")
+
+long_data <- linked_data %>%
+  pivot_longer(
+    cols = all_of(abundance_cols),
+    names_to = "Sample",
+    values_to = "Abundance"
+  ) %>%
+  mutate(Sample = gsub("_interleaved_Abundance\\.RPKs", "", Sample)) %>%
+  filter(Abundance > 0)
+
+long_data_annotated <- long_data %>%
+  left_join(meta_subset %>% select(Sample, Substrate, Fermented.food.category, Type.of.fermentation), 
+            by = "Sample")
+
+long_data_annotated <- long_data_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+############################
+############################
+selected_substrate <- "Seed"  # Change as needed
+sankey_data <- long_data_annotated %>%
+  filter(Substrate == selected_substrate, Abundance > 0)
+##########################################
+food_species <- sankey_data %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+species_metabolite <- sankey_data %>%
+  group_by(Taxon, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  food_species$Fermented.food.category,
+  food_species$Taxon,
+  species_metabolite$Metabolite
+)))
+nodes$type <- dplyr::case_when(
+  nodes$name %in% food_species$Fermented.food.category ~ "Category",
+  nodes$name %in% food_species$Taxon ~ "Species",
+  nodes$name %in% species_metabolite$Metabolite ~ "Metabolite",
+  TRUE ~ "Other"
+)
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "Species", "#B0B0B0", "#999999")  # Default gray for others
+)
+
+food_species <- food_species %>%
+  mutate(source = match(Fermented.food.category, nodes$name) - 1,
+         target = match(Taxon, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Taxon, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  food_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])"
+)
+
+seed <-sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(seed, "final_figs/section_4/sankey_plot_seed.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_seed.html", file = "final_figs/section_4/sankey_plot_seed.pdf", selector = "pdf")
+########################################
+########################################
+########################################
+selected_substrate <- "Cereal"  # Change as needed
+sankey_data <- long_data_annotated %>%
+  filter(Substrate == selected_substrate, Abundance > 0)
+##########################################
+food_species <- sankey_data %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+species_metabolite <- sankey_data %>%
+  group_by(Taxon, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  food_species$Fermented.food.category,
+  food_species$Taxon,
+  species_metabolite$Metabolite
+)))
+nodes$type <- dplyr::case_when(
+  nodes$name %in% food_species$Fermented.food.category ~ "Category",
+  nodes$name %in% food_species$Taxon ~ "Species",
+  nodes$name %in% species_metabolite$Metabolite ~ "Metabolite",
+  TRUE ~ "Other"
+)
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "Species", "#B0B0B0", "#999999")  # Default gray for others
+)
+
+food_species <- food_species %>%
+  mutate(source = match(Fermented.food.category, nodes$name) - 1,
+         target = match(Taxon, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Taxon, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  food_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])"
+)
+# Step 6: Plot the Sankey
+Cereal <-sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(Cereal, "final_figs/section_4/sankey_plot_cereal.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_cereal.html", file = "final_figs/section_4/sankey_plot_cereal.pdf", selector = "pdf")
+##########################################
+##########################################
+selected_substrate <- "Root and tuber"  # Change as needed
+sankey_data <- long_data_annotated %>%
+  filter(Substrate == selected_substrate, Abundance > 0)
+##########################################
+food_species <- sankey_data %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+species_metabolite <- sankey_data %>%
+  group_by(Taxon, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  food_species$Fermented.food.category,
+  food_species$Taxon,
+  species_metabolite$Metabolite
+)))
+nodes$type <- dplyr::case_when(
+  nodes$name %in% food_species$Fermented.food.category ~ "Category",
+  nodes$name %in% food_species$Taxon ~ "Species",
+  nodes$name %in% species_metabolite$Metabolite ~ "Metabolite",
+  TRUE ~ "Other"
+)
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "Species", "#B0B0B0", "#999999")  # Default gray for others
+)
+
+food_species <- food_species %>%
+  mutate(source = match(Fermented.food.category, nodes$name) - 1,
+         target = match(Taxon, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Taxon, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+links <- bind_rows(
+  food_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])"
+)
+
+RT <-sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(RT, "final_figs/section_4/sankey_plot_RT.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_RT.html", file = "final_figs/section_4/sankey_plot_RT.pdf", selector = "pdf")
+###########################################################
+selected_substrate <- "Palm"  # Change as needed
+sankey_data <- long_data_annotated %>%
+  filter(Substrate == selected_substrate, Abundance > 0)
+##########################################
+food_species <- sankey_data %>%
+  group_by(Fermented.food.category, Taxon) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+species_metabolite <- sankey_data %>%
+  group_by(Taxon, Metabolite) %>%
+  summarise(value = sum(Abundance), .groups = "drop")
+
+nodes <- data.frame(name = unique(c(
+  food_species$Fermented.food.category,
+  food_species$Taxon,
+  species_metabolite$Metabolite
+)))
+nodes$type <- dplyr::case_when(
+  nodes$name %in% food_species$Fermented.food.category ~ "Category",
+  nodes$name %in% food_species$Taxon ~ "Species",
+  nodes$name %in% species_metabolite$Metabolite ~ "Metabolite",
+  TRUE ~ "Other"
+)
+
+metabolite_colors <- c(
+  "2-Hydroxy-2,4-pentadienoate" = "#66c2a5",
+  "3-Indoleacrylate" = "#fc8d62",
+  "3-Methylindolepyruvate" = "#8da0cb",
+  "4-Hydroxy-2-oxopentanoate" = "#e78ac3",
+  "Acetaldehyde" = "#a6d854",
+  "gamma-Oxalocrotonate" = "#ffd92f",
+  "Indole" = "#e5c494",
+  "Indole-3-acetamide" = "#b3b3b3",
+  "Indole-3-carboxaldehyde" = "#1f78b4",
+  "Indoleacryloyl-CoA" = "#33a02c",
+  "Indolelactate" = "#fb9a99",
+  "Isophenoxazine" = "#cab2d6",
+  "L-Tryptophan" = "#fdbf6f"
+)
+nodes$color <- ifelse(
+  nodes$type == "Metabolite" & nodes$name %in% names(metabolite_colors),
+  metabolite_colors[nodes$name],
+  ifelse(nodes$type == "Species", "#B0B0B0", "#999999")  # Default gray for others
+)
+
+food_species <- food_species %>%
+  mutate(source = match(Fermented.food.category, nodes$name) - 1,
+         target = match(Taxon, nodes$name) - 1)
+
+species_metabolite <- species_metabolite %>%
+  mutate(source = match(Taxon, nodes$name) - 1,
+         target = match(Metabolite, nodes$name) - 1)
+
+
+links <- bind_rows(
+  food_species %>% select(source, target, value),
+  species_metabolite %>% select(source, target, value)
+)
+colourScale <- paste0(
+  "d3.scaleOrdinal().domain([",
+  paste0('"', nodes$name, '"', collapse = ","),
+  "]).range([",
+  paste0('"', nodes$color, '"', collapse = ","),
+  "])"
+)
+
+Palm <-sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  fontSize = 12,
+  nodeWidth = 30,
+  sinksRight = FALSE,
+  colourScale = colourScale
+)
+htmlwidgets::saveWidget(Palm, "inal_figs/section_4/sankey_plot_palm.html")
+webshot2::webshot("final_figs/section_4/sankey_plot_palm.html", file = "final_figs/section_4/sankey_plot_palm.pdf", selector = "pdf")
+#
