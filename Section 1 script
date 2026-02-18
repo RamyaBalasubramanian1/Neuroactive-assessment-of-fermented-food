@@ -1,0 +1,1727 @@
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+# Install the circlize package if not already installed
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+#install.packages("rcompanion")
+library(rcompanion)
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(factoextra)) install.packages("factoextra")
+library(gridExtra)
+library(ggplot2)
+library(factoextra)
+#install.packages("kableExtra")
+library(kableExtra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+library(cowplot)
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+#install.packages("ggnewscale")
+library(ggnewscale)
+library(pairwiseAdonis)
+library(ggrepel)
+library(ggrepel)#lifesaver
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(factoextra)) install.packages("factoextra")
+library(gridExtra)
+library(ggplot2)
+library(factoextra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+#install.packages("coloRamPalette")
+
+# Install the circlize package if not already installed
+#if (!requireNamespace("circlize", quietly = TRUE)) {
+#  install.packages("circlize")
+#}
+#install.packages("ggnewscale")
+library(ggnewscale)
+library(pairwiseAdonis)
+library(ggrepel)
+library(ggrepel)#lifesaver
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) #install.packages("ggplot2")
+  if(!require(factoextra)) #install.packages("factoextra")
+    library(gridExtra)
+library(ggplot2)
+library(factoextra)
+#install.packages("kableExtra")
+library(kableExtra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+meta <- meta[meta$Type.of.fermentation != "Not applicable",]
+#############################
+aff <- read.table("aff_modules.tsv", header=TRUE)
+fs <- read.table("fs_modules.tsv", header = TRUE)
+paula <- read.table("paula_modules.tsv", header = TRUE)
+mk <- read.table("mk_modules.txt", header = TRUE)
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim whitespace from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+# View them
+invalid_cols
+#########################
+all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
+all <- all[, !(colnames(all) == "AF90")]#low sequencing depth
+##############################################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[44,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+
+############################################################
+
+# Your custom substrate colors
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#FF69B4", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+richness$Richness <- as.numeric(as.character(richness$Richness))
+# Jitter plot: Substrate vs Richness
+p <- ggplot(richness, aes(x = Substrate, y = Richness, color = Substrate)) +
+  geom_jitter(width = 0.2, size = 3, alpha = 0.8) +
+  scale_color_manual(values = substrate_colors) +
+  labs(title = "Richness by Substrate (Jitter Plot)",
+       x = "Substrate",
+       y = "Richness") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+##################################
+#trying to capture what I did before
+# Ensure Richness is numeric and remove NAs
+richness$Richness <- as.numeric(as.character(richness$Richness))
+richness_clean <- richness[!is.na(richness$Richness), ]
+
+# Violin + Jitter plot
+library(ggplot2)
+library(ggpubr)
+kw_test <- kruskal.test(Richness ~ Substrate, data = richness_clean)
+kw_p <- format.pval(kw_test$p.value, digits = 3, eps = 0.001)
+kw_label <- paste0("Effect of substrate on GBM richness\np = ", kw_p)
+
+p1<- ggplot(richness_clean, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.6),
+    legend.position = "none"
+  ) +
+  annotate("label", 
+           x = 4, 
+           y = max(richness_clean$Richness) - 2, 
+           label = kw_label,
+           size = 4, fontface = "bold", fill = "white", color = "black") +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0.06, 0.05))
+  )
+
+ggsave(filename = "final_figs/gbm_richness_plot.svg", plot = p1, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+
+#stat test
+shapiro.test(richness$Richness)
+kruskal.test(Richness ~ Substrate, data = richness)
+kruskal.test(Richness ~ State, data = richness)
+kruskal.test(Richness ~ Type.of.fermentation, data = richness)
+dunn_result <- dunnTest(Richness ~ Substrate, data = richness, method = "bh")
+#calculating effect size
+richness %>%
+  kruskal_effsize(Richness ~ Substrate)
+
+# State
+richness %>%
+  kruskal_effsize(Richness ~ State)
+
+# Type of fermentation
+richness %>%
+  kruskal_effsize(Richness ~ Type.of.fermentation)
+# Extract and clean results
+sig_pairs <- dunn_result$res %>%                                      # only significant
+  separate(Comparison, into = c("group1", "group2"), sep = " - ") %>%
+  mutate(
+    label = case_when(
+      P.adj < 0.001 ~ "***",
+      P.adj < 0.01 ~ "**",
+      P.adj < 0.05 ~ "*",  
+      P.adj > 0.05 ~ "NS"
+    ),
+    y.position = 20 + row_number()  # adjust Y positions if needed
+  )
+
+p2 <-  ggplot(sig_pairs, aes(x = group1, y = group2, fill = label)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = label), color = "black", size = 3) +
+  scale_fill_manual(values = c(
+    "NS" = "white", 
+    "*" = "lightyellow", 
+    "**" = "yellow", 
+    "***" = "gold"
+  )) +
+  labs(title = "Pairwise Significance between substrates",
+       x = " ",
+       y = "",
+       fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1, size = 8),   # smaller axis text
+    axis.text.y = element_text(size = 8),
+    plot.margin = margin(-150,2,2,2)  # smaller margins
+  ) +
+  coord_fixed(ratio = 0.18) 
+
+ggsave(filename = "final_figs/gbm_richness_pairwise_plot.svg", plot = p2, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+#######################################
+p1s <- ggplot(richness_clean, aes(x = State, y = Richness, fill = State)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "gbm_richness_sof.svg", plot = p1s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+p2s <- ggplot(richness_clean, aes(x = Type.of.fermentation, y = Richness, fill =Type.of.fermentation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "final_figs/section_1/gbm_richness_tof.svg", plot = p2s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+#ggboxplot(richness, x = "Substrate", y = "Richness", color = "Substrate", add = "jitter") +
+#stat_compare_means(method = "kruskal.test") 
+#######
+########################################
+# Determine plot height cap and spacing
+y_max_data <- max(richness_clean$Richness, na.rm = TRUE)  # max value of actual data
+y_cap <- 37  # maximum y-axis limit (your preference)
+n_comparisons <- nrow(sig_pairs)
+
+# Dynamic spacing to fit all comparisons within y_cap
+spacing <- (y_cap - y_max_data - 1) / (n_comparisons + 1)  # 1 buffer
+
+sig_pairs <- sig_pairs %>%
+  mutate(
+    label = case_when(
+      P.adj < 0.001 ~ "***",
+      P.adj < 0.01 ~ "**",
+      P.adj < 0.05 ~ "*",
+      P.adj > 0.05 ~ "NS"
+    ),
+    y.position = y_max_data + 1 + row_number() * spacing
+  )
+
+######################################
+ggboxplot(richness_clean, x = "Substrate", y = "Richness",
+          color = "Substrate", palette = substrate_colors,
+          add = "jitter", add.params = list(size = 1.5, alpha = 0.4)) +
+  stat_pvalue_manual(sig_pairs,
+                     label = "label",
+                     y.position = "y.position",
+                     step.increase = 0.05,
+                     bracket.size = 0.3,
+                     tip.length = 0.005,
+                     size = 4) +
+  
+  scale_y_continuous(
+    breaks = seq(0, 37, by = 5)  # Only label up to 37
+  ) +
+  
+  coord_cartesian(ylim = c(0, 55)) +  # Extend axis to fit significance lines
+  
+  labs(title = "Impact of substrate on GBM Richness",
+       x = "Substrate", y = "Richness") +
+  
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.major = element_blank(),  # remove major grid lines
+    panel.grid.minor = element_blank(),  # remove minor grid lines
+    panel.background = element_blank(),  # remove background color
+    axis.line = element_line(color = "black"),  # keep axes
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", size = 16),
+    legend.position = "none"
+  )
+##################################################################
+##################################################################
+
+library(multcompView)
+
+# Function to generate compact letter display labels from sig_pairs
+get_cld_letters <- function(sig_pairs_df) {
+  groups <- unique(c(sig_pairs_df$group1, sig_pairs_df$group2))
+  p_mat <- matrix(1, nrow=length(groups), ncol=length(groups),
+                  dimnames = list(groups, groups))
+  for (i in 1:nrow(sig_pairs_df)) {
+    g1 <- sig_pairs_df$group1[i]
+    g2 <- sig_pairs_df$group2[i]
+    p_val <- sig_pairs_df$P.adj[i]
+    p_mat[g1, g2] <- p_val
+    p_mat[g2, g1] <- p_val
+  }
+  sig_matrix <- p_mat < 0.05
+  rownames(sig_matrix) <- colnames(sig_matrix) <- groups
+  cld <- multcompView::multcompLetters(sig_matrix)$Letters
+  return(data.frame(Substrate = names(cld), Letters = cld))
+}
+
+# Generate CLD letters
+letters_df <- get_cld_letters(sig_pairs)
+
+# Merge with richness data
+plot_data <- richness_clean %>%
+  left_join(letters_df, by = "Substrate")
+
+# Determine y-axis position for each label
+label_positions <- plot_data %>%
+  group_by(Substrate) %>%
+  summarise(y = max(Richness, na.rm = TRUE) + 1)
+
+plot_data <- left_join(plot_data, label_positions, by = "Substrate")
+
+# Define label to annotate (you must define kw_label and substrate_colors beforehand)
+# Example: kw_label <- "Kruskal-Wallis, p < 0.001"
+
+# Label text (as you already started)
+kw_label <- paste0("Effect of substrate on GBM richness\np = ", kw_p)
+
+# Add a facet column (same value for all rows)
+plot_data$kw_label <- kw_label
+
+p_final <- ggplot(plot_data, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  geom_text(aes(y = y, label = Letters), vjust = 0, size = 5) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(title = "", x = "", y = "Richness") +
+  facet_wrap(~ kw_label) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0.06, 0.05))
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x  = element_text(face = "bold", angle = 0, hjust = 0.3),
+    axis.title.x = element_text(face = "bold", size = 14),
+    legend.position = "none",
+    strip.text = element_text(size = 14, face = "bold"),
+    strip.background = element_rect(fill = "white", color = "black")
+  )
+
+
+ggsave(filename = "final_figs/section_1/gbm_richness_pairwise_alpahbet_sphaghetti.svg", plot = p_final, width = 12, height = 6, units = "in", dpi = 300, device = "svg")
+
+
+#############################
+#gmm time
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#############################
+aff <- read.table("aff_gmm_modules.tsv", header=TRUE)
+fs <- read.table("fs_gmm_modules.tsv", header = TRUE)
+paula <- read.table("paula_gmm_modules.tsv", header = TRUE)
+mk <- read.table("mk_gmm_modules.txt", header = TRUE)
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_gmm_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_gmm_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_gmm_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_gmm_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim whitespace from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+# View them
+invalid_cols
+########################################
+all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
+all <- all[, !(colnames(all) == "AF90")]#low sequencing depth
+########################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[94,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+#########################################
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#FF69B4", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+richness$Richness <- as.numeric(as.character(richness$Richness))
+richness_clean <- richness[!is.na(richness$Richness), ]
+shapiro.test(richness$Richness)
+kruskal.test(Richness ~ Substrate, data = richness)
+kruskal.test(Richness ~ State, data = richness)
+kruskal.test(Type.of.fermentation ~ Richness, data = richness)
+##################################################################
+##################################################################
+# Substrate
+richness %>%
+  kruskal_effsize(Richness ~ Substrate)
+
+# State
+richness %>%
+  kruskal_effsize(Richness ~ State)
+
+# Type of fermentation
+richness %>%
+  kruskal_effsize(Richness ~ Type.of.fermentation)
+#############
+#kruskal.effect.size(Richness ~ Substrate, data = richness)
+
+dunn_result <- dunnTest(Richness ~ Substrate, data = richness, method = "bh")
+# Extract and clean results
+sig_pairs <- dunn_result$res %>%                                      # only significant
+  separate(Comparison, into = c("group1", "group2"), sep = " - ") %>%
+  mutate(
+    label = case_when(
+      P.adj < 0.001 ~ "***",
+      P.adj < 0.01 ~ "**",
+      P.adj < 0.05 ~ "*",  
+      P.adj > 0.05 ~ "NS"
+    ),
+    y.position = 20 + row_number()  # adjust Y positions if needed
+  )
+#ggboxplot(richness, x = "Substrate", y = "Richness", color = "Substrate", add = "jitter") +
+#stat_compare_means(method = "kruskal.test") 
+#######
+kw_test <- kruskal.test(Richness ~ Substrate, data = richness_clean)
+kw_p <- format.pval(kw_test$p.value, digits = 3, eps = 0.001)
+kw_label <- paste0("Effect of substrate on GMM richness\np = ", kw_p)
+q1 <- ggplot(richness_clean, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.6),
+    legend.position = "none"
+  ) +
+  annotate("label", 
+           x = 4, 
+           y = max(richness_clean$Richness) - 2, 
+           label = kw_label,
+           size = 4, fontface = "bold", fill = "white", color = "black") +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0.06, 0.05))
+  )
+ggsave(filename = "C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/final_figs/gmm_richness_plot.svg", plot = q1, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+q2 <- ggplot(sig_pairs, aes(x = group1, y = group2, fill = label)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = label), color = "black", size = 3) +
+  scale_fill_manual(values = c(
+    "NS" = "white", 
+    "*" = "lightyellow", 
+    "**" = "yellow", 
+    "***" = "gold"
+  )) +
+  labs(title = "Pairwise Significance between substrates",
+       x = " ",
+       y = "",
+       fill = "Significance") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1, size = 8),   # smaller axis text
+    axis.text.y = element_text(size = 8),
+    plot.margin = margin(-150,2,2,2)  # smaller margins
+  ) +
+  coord_fixed(ratio = 0.18)  
+
+ggsave(filename = "C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/final_figs/gmm_richness_pairwise_plot.svg", plot = q2, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+###############
+q1s <- ggplot(richness_clean, aes(x = State, y = Richness, fill = State)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "final_figs/section_1/gmm_richness_sof.svg", plot = q1s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+q2s <- ggplot(richness_clean, aes(x = Type.of.fermentation, y = Richness, fill =Type.of.fermentation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "final_figs/section_1/gmm_richness_tof.svg", plot = p2s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+############
+#############################################################################
+#############################################################################
+library(multcompView)
+
+# Function to generate compact letter display labels from sig_pairs
+get_cld_letters <- function(sig_pairs_df) {
+  groups <- unique(c(sig_pairs_df$group1, sig_pairs_df$group2))
+  p_mat <- matrix(1, nrow=length(groups), ncol=length(groups),
+                  dimnames = list(groups, groups))
+  for (i in 1:nrow(sig_pairs_df)) {
+    g1 <- sig_pairs_df$group1[i]
+    g2 <- sig_pairs_df$group2[i]
+    p_val <- sig_pairs_df$P.adj[i]
+    p_mat[g1, g2] <- p_val
+    p_mat[g2, g1] <- p_val
+  }
+  sig_matrix <- p_mat < 0.05
+  rownames(sig_matrix) <- colnames(sig_matrix) <- groups
+  cld <- multcompView::multcompLetters(sig_matrix)$Letters
+  return(data.frame(Substrate = names(cld), Letters = cld))
+}
+
+# Generate CLD letters
+letters_df <- get_cld_letters(sig_pairs)
+
+# Merge with richness data
+plot_data <- richness_clean %>%
+  left_join(letters_df, by = "Substrate")
+
+# Determine y-axis position for each label
+label_positions <- plot_data %>%
+  group_by(Substrate) %>%
+  summarise(y = max(Richness, na.rm = TRUE) + 1)
+
+plot_data <- left_join(plot_data, label_positions, by = "Substrate")
+
+# Define label to annotate (you must define kw_label and substrate_colors beforehand)
+# Example: kw_label <- "Kruskal-Wallis, p < 0.001"
+
+# Create the plot
+p_final_gmm <- ggplot(plot_data, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  geom_text(aes(y = y, label = Letters), vjust = 0, size = 5) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.3),
+    legend.position = "none"
+  ) +
+  annotate("label", 
+           x = 4, 
+           y = max(richness_clean$Richness, na.rm = TRUE) - 0.1, 
+           label = kw_label,
+           size = 4, fontface = "bold", fill = "white", color = "black") +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0.06, 0.05))
+  )
+# Label text (as you already started)
+kw_label <- paste0("Effect of substrate on GBM richness\np = ", kw_p)
+
+# Add a facet column (same value for all rows)
+plot_data$kw_label <- kw_label
+
+p_final <- ggplot(plot_data, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  geom_text(aes(y = y, label = Letters), vjust = 0, size = 5) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(title = "", x = "", y = "Richness") +
+  facet_wrap(~ kw_label) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0.06, 0.05))
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x  = element_text(face = "bold", angle = 0, hjust = 0.3),
+    axis.title.x = element_text(face = "bold", size = 14),
+    legend.position = "none",
+    strip.text = element_text(size = 14, face = "bold"),
+    strip.background = element_rect(fill = "white", color = "black")
+  )
+
+
+ggsave(filename = "alphabetboxplot.svg", plot = p_final_gmm, width = 12, height = 6, units = "in", dpi = 300, device = "svg")
+
+
+
+
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#############################
+aff <- read.table("aff_modules.tsv", header=TRUE)
+fs <- read.table("fs_modules.tsv", header = TRUE)
+paula <- read.table("paula_/modules.tsv", header = TRUE)
+mk <- read.table("mk_modules.txt", header = TRUE)
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kombucha_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim whitespace from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+# View them
+invalid_cols
+##############################################################
+all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
+all <- all[, !(colnames(all) == "AF90")]#low sequencing depth
+##############################################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[44,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+
+############################################################
+
+# Your custom substrate colors
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#FF69B4", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#FF69B4", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+#########################################
+library(compositions)
+library(Tjazi)
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#########################################
+# Make sure it's a data frame and numeric
+call <- as.data.frame(call)
+call[] <- lapply(call, function(x) as.numeric(as.character(x)))  # force numeric
+
+# Replace NA with 0 (if needed)
+call[is.na(call)] <- 0
+
+
+n_zeroes <- rowSums(call == 0)
+call <- call[n_zeroes <= round(ncol(call) * 0.90),]
+
+call <- clr_c(call)
+rownames(call) <- gsub("\\.", "-", rownames(call))
+data.a.pca <- prcomp(call)
+
+pc1 <- round(data.a.pca$sdev[1]^2/sum(data.a.pca$sdev^2),4) * 100
+pc2 <- round(data.a.pca$sdev[2]^2/sum(data.a.pca$sdev^2),4) * 100
+pc3 <- round(data.a.pca$sdev[3]^2/sum(data.a.pca$sdev^2),4) * 100
+pc4 <- round(data.a.pca$sdev[4]^2/sum(data.a.pca$sdev^2),4) * 100
+pca = data.frame(PC1 = data.a.pca$x[,1],
+                 PC2 = data.a.pca$x[,2],
+                 PC3 = data.a.pca$x[,3],
+                 PC4 = data.a.pca$x[,4])
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+
+
+
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(call), ]
+meta_filtered <- meta_filtered[match(rownames(call), meta_filtered$ID), ]
+meta_filtered <- meta_filtered[complete.cases(meta_filtered), ]
+pca <- pca[rownames(pca) %in% rownames(call), ]
+
+pca$ID <- meta_filtered$ID
+pca$Substrate <- meta_filtered$Substrate
+pca$State <- meta_filtered$State
+pca$TOF <- meta_filtered$Type.of.fermentation
+##############################################
+#PLOTTY
+#temp fix until you decde what to do about fsob
+# Update the corresponding row in pca
+pca$ID <- rownames(pca)
+###################################
+
+
+#First, the main plot. Plot the first two components of the PCA
+s1 <-ggplot(pca, aes(x = PC1, y = PC2, color = Substrate)) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(values = substrate_colors) +
+  labs(
+    title = "Gut-Brain Modules composition of fermented foods",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+#########
+##############################
+##############################
+
+
+# Prepare loadings and annotate with Pathway info
+loadings <- data.a.pca$rotation[, 1:2]
+loadings <- as.data.frame(loadings)
+loadings$Module <- rownames(loadings)
+
+# Select top 15 contributors to PC1 and PC2
+top_features <- loadings[order(abs(loadings$PC1) + abs(loadings$PC2), decreasing = TRUE), ]
+top_features <- head(top_features, 5)
+
+# Merge with annotation to get Pathway names
+top_features <- merge(top_features, anno[, c("Module", "Pathway")], by = "Module", all.x = TRUE)
+
+# Scale loadings for plot clarity
+top_features$PC1 <- top_features$PC1 * 10
+top_features$PC2 <- top_features$PC2 * 10
+
+# Plot PCA with pathway arrows and labels
+
+
+# Updated PCA biplot with non-overlapping labels
+library(ggrepel)
+
+s1 <- s1 +
+  geom_point(aes(fill = Substrate), 
+             shape = 21,    # filled circle with outline
+             size = 3,
+             color = "black",  # black border
+             stroke = 0.7) +
+  geom_segment(data = top_features, 
+               aes(x = 0, y = 0, xend = PC1, yend = PC2),
+               arrow = arrow(length = unit(0.25, "cm"), type = "closed"),
+               color = "red", size = 0.9, lineend = "round") +
+  geom_label_repel(
+    data = top_features,
+    aes(x = PC1, y = PC2, label = Pathway),
+    size = 3.5,
+    color = "black",
+    fill = "white",          # white background
+    max.overlaps = 50,
+    box.padding = 0.5,
+    point.padding = 0.3,
+    segment.size = 0.3,
+    segment.color = "grey30",
+    force = 1.5,
+    nudge_y = 0.1,
+    nudge_x = 0.1
+  ) +
+  coord_fixed(ratio = 1) +
+  scale_fill_manual(values = substrate_colors) +  # <--- apply your custom colors here
+  theme_minimal()
+ggsave("final_figs/section_1/pca_gbm_plot.svg", plot = s1, width = 8, height = 6, units = "in")
+
+##############################
+##############################
+#trying within sample jaccard
+#i want to ee if the samples within a group are similar or not and how best to represent this
+
+# Define custom colors for substrate categories
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#FF69B4", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+
+# 1. Filter meta to match PA samples
+meta_filtered <- meta[meta$ID %in% colnames(PA), ]
+meta_filtered <- meta_filtered[match(colnames(PA), meta_filtered$ID), ]
+
+# 2. Transpose PA (samples as rows)
+PA_t <- t(PA)
+
+# 3. Calculate Jaccard distances within each substrate
+samples_meta <- meta_filtered
+substrates <- unique(samples_meta$Substrate)
+jaccard_results <- list()
+
+for (sub in substrates) {
+  group_indices <- which(samples_meta$Substrate == sub)
+  group_data <- PA_t[group_indices, , drop = FALSE]
+  
+  if (nrow(group_data) > 1) {
+    group_data <- as.matrix(group_data)
+    group_data <- apply(group_data, 2, as.numeric)
+    group_data <- group_data[rowSums(group_data) > 0, , drop = FALSE]
+    
+    if (nrow(group_data) > 1) {
+      dist_matrix <- suppressWarnings(as.matrix(vegdist(group_data, method = "jaccard")))
+      dists <- dist_matrix[lower.tri(dist_matrix)]
+      jaccard_results[[sub]] <- dists
+    } else {
+      jaccard_results[[sub]] <- NA
+    }
+  } else {
+    jaccard_results[[sub]] <- NA
+  }
+}
+
+# 4. Convert results to tidy data frame
+jaccard_df <- do.call(rbind, lapply(names(jaccard_results), function(sub) {
+  dists <- jaccard_results[[sub]]
+  if (!all(is.na(dists))) {
+    data.frame(Sample = sub, Distance = dists)
+  }
+})) %>% as.data.frame()
+jaccard_df$Substrate_category <- jaccard_df$Sample
+
+# 5. Add substrate category info
+sample_substrate_map <- meta_filtered[, c("ID", "Substrate")]
+jaccard_df <- merge(jaccard_df, sample_substrate_map, by.x = "Sample", by.y = "ID", all.x = TRUE)
+colnames(jaccard_df)[colnames(jaccard_df) == "Substrate"] <- "Substrate_category"
+jaccard_df <- jaccard_df[,-4]
+# 6. Plot
+t1 <- ggplot(jaccard_df, aes(x = Sample, y = Distance, color = Substrate_category)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.6, size = 0.9) +
+  scale_color_manual(values = substrate_colors) +
+  theme_bw() +
+  ylab("Jaccard Distance") +
+  xlab("Substrate") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+        legend.title = element_blank()) +
+  ggtitle("Within-Substrate Jaccard Distances based on GBM composition")
+
+ggsave("final_figs/section_1/jaccard_gbm_plot_boxplot.svg", plot = t1, width = 8, height = 6, units = "in")
+
+################################################################
+################################################################
+#gbm STATS
+meta_clean <- meta_filtered[!is.na(meta_filtered$Substrate), ]
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+meta_clean <- meta_clean[match(rownames(call_clean), meta_clean$ID), ]
+clr_dist <- dist(call_clean, method = "euclidean")
+#######################
+# Check group dispersions
+disp <- betadisper(clr_dist, meta_clean$Substrate)
+anova(disp)
+disp$group.distances
+########################
+plot(disp)
+boxplot(disp, main = "Group Dispersions (betadisper)")
+#report with caution
+#PERMANOVA revealed significant differences in sample composition between substrate groups (R² = 0.XX, p < 0.001).
+#However, a test for homogeneity of dispersion (betadisper) was also significant (p < 0.001), suggesting that differences may be influenced by unequal within-group variances
+########################
+adonis_result <- adonis2(clr_dist ~ Substrate, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ State, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Type.of.fermentation, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Substrate+Type.of.fermentation+State, data = meta_clean, method = "eucledian", permutations = 999, by = "term")
+print(adonis_result)
+############################################
+############################################
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+call_clean_df <- as.data.frame(call_clean)
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+meta_clean <- meta_clean[!is.na(meta_clean$Substrate), ]
+call_clean_df <- call_clean_df[rownames(call_clean_df) %in% meta_clean$ID, ]
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+pairwise_results <- pairwise.adonis(call_clean_df, 
+                                    factors = meta_clean$Substrate,
+                                    perm = 999)
+
+print(pairwise_results)
+write.csv(pairwise_results, file = "supplementary/GBM_Pairwise_comparison_eucledian.csv")
+#################################
+
+# 1. Filter meta to only include samples also present in PA
+meta_pa <- meta[meta$ID %in% colnames(PA), ]
+
+pa_filtered <- PA[, c("Module", meta_pa$ID)]  # keep 'Module' as first column
+pa_bin <- pa_filtered
+############################
+pa_bin <- as.data.frame(t(pa_bin[-1]))  # remove "Module" row before transpose
+colnames(pa_bin) <- pa_filtered$Module
+pa_bin <- as.data.frame(lapply(pa_bin, as.numeric))
+rownames(pa_bin) <- colnames(pa_filtered)[-1]
+# Remove samples with no present modules (all 0s)
+pa_bin <- pa_bin[rowSums(pa_bin) > 0, ]
+meta_pa <- meta_pa[meta_pa$ID %in% rownames(pa_bin), ]
+pa_bin <- pa_bin[rownames(pa_bin) %in% meta_pa$ID, ]
+meta_pa <- meta_pa[match(rownames(pa_bin), meta_pa$ID), ]
+stopifnot(identical(rownames(pa_bin), meta_pa$ID))
+
+
+
+# 4. Jaccard distance
+jaccard_dist <- vegdist(pa_bin, method = "jaccard", binary = TRUE)
+
+# 5. PCoA (cmdscale)
+jaccard_pcoa <- cmdscale(jaccard_dist, eig = TRUE, k = 2)
+# Extract eigenvalues
+eig_vals <- jaccard_pcoa$eig
+
+# Calculate percentage of variance explained
+variance_explained <- eig_vals / sum(eig_vals[eig_vals > 0]) * 100
+
+# Round for clean axis labels
+pc1_var <- round(variance_explained[1], 2)
+pc2_var <- round(variance_explained[2], 2)
+jaccard_coords <- as.data.frame(jaccard_pcoa$points)
+colnames(jaccard_coords) <- c("PC1", "PC2")
+jaccard_coords$ID <- rownames(jaccard_coords)
+
+# 6. Merge with filtered meta
+pca_df <- left_join(jaccard_coords, meta_pa, by = "ID")
+
+
+# 7. Plot
+jac_gbm <- ggplot(pca_df, aes(x = PC1, y = PC2, fill = Substrate)) +
+  geom_point(shape = 21, size = 3, alpha = 0.8, stroke = 0.7, color = "black") +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "Gut brain modules composition of fermented foods-presence/absence",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+############################################
+
+ggsave("final_figs/section_1/jaccard_gbm_pca.svg", plot = jac_gbm, width = 8, height = 6, units = "in")
+
+
+
+
+#################
+adonis_result <- adonis2(jaccard_dist ~ Substrate + State + Type.of.fermentation,
+                         data = meta_pa,
+                         permutations = 999,
+                         method = "jaccard",  by = "term")
+
+print(adonis_result)
+
+
+
+
+
+
+##################################################################
+##################################################################
+#gut metabolic modules
+################################################################
+meta <- read.csv("Cmeta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#############################
+aff <- read.table("aff_gmm_modules.tsv", header=TRUE)
+fs <- read.table("fs_gmm_modules.tsv", header = TRUE)
+paula <- read.table("paula_gmm_modules.tsv", header = TRUE)
+mk <- read.table("mk_gmm_modules.txt", header = TRUE)
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_gmm_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_gmm_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_gmm_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_gmm_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim whitespace from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+# View them
+invalid_cols
+#################################
+# Trim whitespace from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+# View them
+invalid_cols
+##############################################################
+all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
+all <- all[, !(colnames(all) == "AF90")]#low sequencing depth
+##############################################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[94,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+
+# Your custom substrate colors
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#FF69B4", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+#########################################
+library(compositions)
+library(Tjazi)
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#########################################
+# Make sure it's a data frame and numeric
+call <- as.data.frame(call)
+call[] <- lapply(call, function(x) as.numeric(as.character(x)))  # force numeric
+
+# Replace NA with 0 (if needed)
+call[is.na(call)] <- 0
+
+
+n_zeroes <- rowSums(call == 0)
+call <- call[n_zeroes <= round(ncol(call) * 0.90),]
+
+call <- clr_c(call)
+rownames(call) <- gsub("\\.", "-", rownames(call))
+data.a.pca <- prcomp(call)
+
+pc1 <- round(data.a.pca$sdev[1]^2/sum(data.a.pca$sdev^2),4) * 100
+pc2 <- round(data.a.pca$sdev[2]^2/sum(data.a.pca$sdev^2),4) * 100
+pc3 <- round(data.a.pca$sdev[3]^2/sum(data.a.pca$sdev^2),4) * 100
+pc4 <- round(data.a.pca$sdev[4]^2/sum(data.a.pca$sdev^2),4) * 100
+pca = data.frame(PC1 = data.a.pca$x[,1],
+                 PC2 = data.a.pca$x[,2],
+                 PC3 = data.a.pca$x[,3],
+                 PC4 = data.a.pca$x[,4])
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+
+anno <- read.csv("annotation_gmm.csv")
+dim(anno)
+
+
+
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(call), ]
+meta_filtered <- meta_filtered[match(rownames(call), meta_filtered$ID), ]
+meta_filtered <- meta_filtered[complete.cases(meta_filtered), ]
+pca <- pca[rownames(pca) %in% rownames(call), ]
+
+pca$ID <- meta_filtered$ID
+pca$Substrate <- meta_filtered$Substrate
+pca$State <- meta_filtered$State
+pca$TOF <- meta_filtered$Type.of.fermentation
+##############################################
+#PLOTTY
+#temp fix until you decde what to do about fsob
+# Update the corresponding row in pca
+pca$ID <- rownames(pca)
+
+
+#First, the main plot. Plot the first two components of the PCA
+
+#First, the main plot. Plot the first two components of the PCA
+s2 <-ggplot(pca, aes(x = PC1, y = PC2, color = Substrate)) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(values = substrate_colors) +
+  labs(
+    title = "Gut metabolic modules composition of fermented foods",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+#########
+##############################
+##############################
+
+
+# Prepare loadings and annotate with Pathway info
+loadings <- data.a.pca$rotation[, 1:2]
+loadings <- as.data.frame(loadings)
+loadings$Module <- rownames(loadings)
+
+# Select top 15 contributors to PC1 and PC2
+top_features <- loadings[order(abs(loadings$PC1) + abs(loadings$PC2), decreasing = TRUE), ]
+top_features <- head(top_features, 10)
+
+# Merge with annotation to get Pathway names
+top_features <- merge(top_features, anno[, c("Module", "Pathway")], by = "Module", all.x = TRUE)
+
+# Scale loadings for plot clarity
+top_features$PC1 <- top_features$PC1 * 15
+top_features$PC2 <- top_features$PC2 * 15
+
+s2 <- s2 +
+  geom_point(aes(fill = Substrate), 
+             shape = 21,    # filled circle with outline
+             size = 3,
+             color = "black",  # black border
+             stroke = 0.7) +
+  geom_segment(data = top_features, 
+               aes(x = 0, y = 0, xend = PC1, yend = PC2),
+               arrow = arrow(length = unit(0.25, "cm"), type = "closed"),
+               color = "red", size = 0.9, lineend = "round") +
+  geom_label_repel(
+    data = top_features,
+    aes(x = PC1, y = PC2, label = Pathway),
+    size = 3.5,
+    color = "black",
+    fill = "white",          # white background
+    max.overlaps = 50,
+    box.padding = 0.5,
+    point.padding = 0.3,
+    segment.size = 0.3,
+    segment.color = "grey30",
+    force = 1.5,
+    nudge_y = 0.1,
+    nudge_x = 0.1
+  ) +
+  coord_fixed(ratio = 1) +
+  scale_fill_manual(values = substrate_colors) +  # <--- apply your custom colors here
+  theme_minimal()
+ggsave("final_figs/section_1/pca_gmm_plot.svg", plot = s2, width = 8, height = 6, units = "in")
+
+##############################
+##############################
+#trying within sample jaccard
+#i want to ee if the samples within a group are similar or not and how best to represent this
+# Load libraries
+library(vegan)
+library(ggplot2)
+library(dplyr)
+
+# Define custom colors for substrate categories
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#FF69B4", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+
+# 1. Filter meta to match PA samples
+meta_filtered <- meta[meta$ID %in% colnames(PA), ]
+meta_filtered <- meta_filtered[match(colnames(PA), meta_filtered$ID), ]
+
+# 2. Transpose PA (samples as rows)
+PA_t <- t(PA)
+
+# 3. Calculate Jaccard distances within each substrate
+samples_meta <- meta_filtered
+substrates <- unique(samples_meta$Substrate)
+jaccard_results <- list()
+
+for (sub in substrates) {
+  group_indices <- which(samples_meta$Substrate == sub)
+  group_data <- PA_t[group_indices, , drop = FALSE]
+  
+  if (nrow(group_data) > 1) {
+    group_data <- as.matrix(group_data)
+    group_data <- apply(group_data, 2, as.numeric)
+    group_data <- group_data[rowSums(group_data) > 0, , drop = FALSE]
+    
+    if (nrow(group_data) > 1) {
+      dist_matrix <- suppressWarnings(as.matrix(vegdist(group_data, method = "jaccard")))
+      dists <- dist_matrix[lower.tri(dist_matrix)]
+      jaccard_results[[sub]] <- dists
+    } else {
+      jaccard_results[[sub]] <- NA
+    }
+  } else {
+    jaccard_results[[sub]] <- NA
+  }
+}
+
+# 4. Convert results to tidy data frame
+jaccard_df <- do.call(rbind, lapply(names(jaccard_results), function(sub) {
+  dists <- jaccard_results[[sub]]
+  if (!all(is.na(dists))) {
+    data.frame(Sample = sub, Distance = dists)
+  }
+})) %>% as.data.frame()
+jaccard_df$Substrate_category <- jaccard_df$Sample
+
+# 5. Add substrate category info
+sample_substrate_map <- meta_filtered[, c("ID", "Substrate")]
+jaccard_df <- merge(jaccard_df, sample_substrate_map, by.x = "Sample", by.y = "ID", all.x = TRUE)
+colnames(jaccard_df)[colnames(jaccard_df) == "Substrate"] <- "Substrate_category"
+jaccard_df <- jaccard_df[,-4]
+# 6. Plot
+p2 <- ggplot(jaccard_df, aes(x = Sample, y = Distance, color = Substrate_category)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.6, size = 0.9) +
+  scale_color_manual(values = substrate_colors) +
+  theme_bw() +
+  ylab("Jaccard Distance") +
+  xlab("Substrate") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+        legend.title = element_blank()) +
+  ggtitle("Within-Substrate Jaccard Distances based on GMM composition")
+ggsave("final_figs/section_1/jaccard_gmm_plot.svg", plot = p2, width = 8, height = 6, units = "in")
+#############################################################
+#############################################################
+#stat time to check if there is effect of substrate on GBMand GMM composition
+
+meta_clean <- meta_filtered[!is.na(meta_filtered$Substrate), ]
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+meta_clean <- meta_clean[match(rownames(call_clean), meta_clean$ID), ]
+clr_dist <- dist(call_clean, method = "euclidean")
+#######################
+# Check group dispersions
+disp <- betadisper(clr_dist, meta_clean$Substrate)
+anova(disp)
+########################
+plot(disp)
+boxplot(disp, main = "Group Dispersions (betadisper)")
+#report with caution
+#PERMANOVA revealed significant differences in sample composition between substrate groups (R² = 0.XX, p < 0.001).
+#However, a test for homogeneity of dispersion (betadisper) was also significant (p < 0.001), suggesting that differences may be influenced by unequal within-group variances
+########################
+adonis_result <- adonis2(clr_dist ~ Substrate, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ State, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Type.of.fermentation, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Substrate+State+Type.of.fermentation, data = meta_clean, permutations = 999)
+print(adonis_result)
+############################################
+############################################
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+call_clean_df <- as.data.frame(call_clean)
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+meta_clean <- meta_clean[!is.na(meta_clean$Substrate), ]
+call_clean_df <- call_clean_df[rownames(call_clean_df) %in% meta_clean$ID, ]
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+pairwise_results <- pairwise.adonis(call_clean_df, 
+                                    factors = meta_clean$Substrate,
+                                    perm = 999)
+
+print(pairwise_results)
+write.csv(pairwise_results, file = "supplementary/GMM_Pairwise_comparison_eucledian.csv")
+####################################
+####################################
+#jaccard pca
+
+# 1. Filter meta to only include samples also present in PA
+meta_pa <- meta[meta$ID %in% colnames(PA), ]
+
+pa_filtered <- PA[, c("Module", meta_pa$ID)]  # keep 'Module' as first column
+pa_bin <- pa_filtered
+############################
+pa_bin <- as.data.frame(t(pa_bin[-1]))  # remove "Module" row before transpose
+colnames(pa_bin) <- pa_filtered$Module
+pa_bin <- as.data.frame(lapply(pa_bin, as.numeric))
+rownames(pa_bin) <- colnames(pa_filtered)[-1]
+# Remove samples with no present modules (all 0s)
+pa_bin <- pa_bin[rowSums(pa_bin) > 0, ]
+meta_pa <- meta_pa[meta_pa$ID %in% rownames(pa_bin), ]
+pa_bin <- pa_bin[rownames(pa_bin) %in% meta_pa$ID, ]
+meta_pa <- meta_pa[match(rownames(pa_bin), meta_pa$ID), ]
+stopifnot(identical(rownames(pa_bin), meta_pa$ID))
+
+
+
+# 4. Jaccard distance
+jaccard_dist <- vegdist(pa_bin, method = "jaccard", binary = TRUE)
+
+# 5. PCoA (cmdscale)
+jaccard_pcoa <- cmdscale(jaccard_dist, eig = TRUE, k = 2)
+# Extract eigenvalues
+eig_vals <- jaccard_pcoa$eig
+
+# Calculate percentage of variance explained
+variance_explained <- eig_vals / sum(eig_vals[eig_vals > 0]) * 100
+
+# Round for clean axis labels
+pc1_var <- round(variance_explained[1], 2)
+pc2_var <- round(variance_explained[2], 2)
+jaccard_coords <- as.data.frame(jaccard_pcoa$points)
+colnames(jaccard_coords) <- c("PC1", "PC2")
+jaccard_coords$ID <- rownames(jaccard_coords)
+
+# 6. Merge with filtered meta
+pca_df <- left_join(jaccard_coords, meta_pa, by = "ID")
+
+# 7. Plot
+jac_gmm <- ggplot(pca_df, aes(x = PC1, y = PC2, fill = Substrate)) +
+  geom_point(shape = 21, size = 3, alpha = 0.8, stroke = 0.7, color = "black") +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "Gut metabolic modules composition of fermented foods-presence/absence",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+############################################
+
+ggsave("final_figs/section_1/jaccard_gmm_pca.svg", plot = jac_gmm, width = 8, height = 6, units = "in")
+
+
+
+
+#################
+adonis_result <- adonis2(jaccard_dist ~ Substrate + State + Type.of.fermentation,
+                         data = meta_pa,
+                         permutations = 999,
+                         method = "jaccard",  by = "term")
+
+print(adonis_result)
