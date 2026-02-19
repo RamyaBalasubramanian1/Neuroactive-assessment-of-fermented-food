@@ -1,0 +1,2018 @@
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+# Install the circlize package if not already installed
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+#install.packages("rcompanion")
+library(rcompanion)
+library(forcats)#for stacking
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(factoextra)) install.packages("factoextra")
+library(gridExtra)
+library(factoextra)
+#install.packages("kableExtra")
+library(kableExtra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("ggsankey")
+#library(ggsankey)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+library(cowplot)
+library(stringr)
+library(janitor)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+#install.packages("ggnewscale")
+library(ggnewscale)
+library(pairwiseAdonis)
+library(ggrepel)#lifesaver
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+library(gridExtra)
+library(ggplot2)
+library(factoextra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+#install.packages("ggalluvial")
+library(ggalluvial)
+#install.packages("networkD3")
+library(networkD3)
+library(htmlwidgets)
+library(purrr)
+#install.packages("compositions")  
+library(compositions)
+library(stringr)
+library(janitor)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(compositions)
+library(ghibli)
+library(factoextra)
+library(patchwork)
+library(pheatmap)
+library(ComplexHeatmap)
+library(ggnewscale)
+library(pairwiseAdonis)
+library(ggrepel)
+library(ggrepel)#lifesaver
+library(rstatix)
+library(ggpubr)
+library(FSA)
+library(circlize)
+library(ggforce)
+library(vegan)
+if(!require(ggplot2)) #install.packages("ggplot2")
+  if(!require(factoextra)) #install.packages("factoextra")
+    library(gridExtra)
+library(ggplot2)
+library(factoextra)
+#install.packages("kableExtra")
+library(kableExtra)
+#install.packages("devtools")
+#devtools::install_github("pmartinezarbizu/pairwiseAdonis", force = TRUE)
+library(pairwiseAdonis)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(htmlwidgets)
+library(purrr)
+library(emmeans)
+library(multcomp); library(multcompView)
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+meta <- meta[meta$Type.of.fermentation != "Not applicable",]
+#############################
+aff <- read.table("aff_modules.tsv", header=TRUE)
+fs <- read.table("fs_modules.tsv", header = TRUE)
+paula <- read.table("paula_/modules.tsv", header = TRUE)
+mk <- read.table("mk_modules.txt", header = TRUE)
+
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+ 
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove  underscore in the end
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim whitespace from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+##############################################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[44,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+
+############################################################
+
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+richness$Richness <- as.numeric(as.character(richness$Richness))
+##################################
+
+richness$Richness <- as.numeric(as.character(richness$Richness))
+richness_clean <- richness[!is.na(richness$Richness), ]
+#######################
+#######################
+#######################
+
+dat <- richness_clean %>%
+  mutate(
+    Fermented.food.category = factor(Fermented.food.category),
+    Substrate               = factor(Substrate),
+    Type.of.fermentation    = factor(Type.of.fermentation),
+    Investigator            = factor(Investigator)
+  )
+m_lm <- lm(log1p(Richness) ~  Substrate + Type.of.fermentation+State, data = dat)
+res <- resid(m_lm)
+shapiro.test(res)
+m_pois <- glm(Richness ~   Substrate + Type.of.fermentation,
+              data = dat, family = poisson)
+disp <- sum(residuals(m_pois, type="pearson")^2) / df.residual(m_pois); disp
+
+performance::check_overdispersion(m_pois)
+sim <- DHARMa::simulateResiduals(m_pois); DHARMa::testDispersion(sim); DHARMa::testZeroInflation(sim)
+m_nb <- MASS::glm.nb(
+  Richness ~ Substrate + Type.of.fermentation+State,
+  data = dat
+)
+anova_tab <- car::Anova(m_nb, type = 2)   # likelihood-ratio tests
+print(anova_tab)
+r2 <- performance::r2(m_nb)
+r2
+emm_sub  <- emmeans(m_nb, ~ Substrate,               type="response")
+emm_type <- emmeans(m_nb, ~ Type.of.fermentation,    type="response")
+emm_state<- emmeans(m_nb, ~ State,                    type="response")
+# Pairwise (Tukey), reported as **ratios of means** with CIs and adj p-values
+pw_sub   <- pairs(emm_sub,   adjust="tukey", type="response")
+pw_type  <- pairs(emm_type,  adjust="tukey", type="response")
+pw_state <- pairs(emm_state, adjust="tukey", type="response")
+sig_pw <- as.data.frame(pw_sub)
+sig_pw <- subset(sig_pw, p.value < 0.05)  
+y_pos <- richness_clean %>%
+  group_by(Substrate) %>%
+  summarize(y = max(Richness, na.rm = TRUE) * 1.08, .groups = "drop")
+# Compact letter display (groups that share a letter are NOT significantly different)
+cld_sub <- cld(emm_sub, adjust = "tukey", Letters = letters, type = "response")
+cld_sub$.group <- gsub("\\s+", "", cld_sub$.group)   # tidy spaces
+cld_df <- as.data.frame(cld_sub)
+grp <- names(cld_df)[1]   
+cld_df <- as.data.frame(cld_sub)
+grp <- names(cld_df)[1]              # first column is the factor used (Substrate)
+
+# 2) Build letters_df using explicit dplyr:: namespace to avoid masking
+letters_df <- cld_df %>%
+  dplyr::transmute(
+    Substrate = .data[[grp]],
+    .group    = gsub("\\s+", "", .group)   # remove spaces in letters
+  ) %>%
+  dplyr::left_join(y_pos, by = "Substrate")
+p1 <- ggplot(richness_clean, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+              color = "black", stroke = 0.4, aes(fill = Substrate)) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(x = "", y = "Richness", title = "") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.6),
+        legend.position = "none") +
+  geom_text(data = letters_df,
+            aes(x = Substrate, y = y, label = .group),
+            vjust = 0, fontface = "bold")
+
+ggsave(filename = "final_figs/gbm_richness_plot.svg", plot = p1, width = 10, height = 6, units = "in", dpi = 300, device = "svg")
+
+#######################################
+p1s <- ggplot(richness_clean, aes(x = State, y = Richness, fill = State)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "final_figs/section_1/gbm_richness_sof.svg", plot = p1s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+p2s <- ggplot(richness_clean, aes(x = Type.of.fermentation, y = Richness, fill =Type.of.fermentation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "final_figs/section_1/gbm_richness_tof.svg", plot = p2s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+##################
+##################
+##################
+##################
+#############################
+#gmm time
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+meta <- meta[meta$Type.of.fermentation != "Not applicable",]
+aff <- read.table("aff_gmm_modules.tsv", header=TRUE)
+fs <- read.table("Cfs_gmm_modules.tsv", header = TRUE)
+paula <- read.table("paula_gmm_modules.tsv", header = TRUE)
+mk <- read.table("mk_gmm_modules.txt", header = TRUE)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+wk <- read.table("wk_gmm_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_gmm_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_gmm_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_gmm_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim empty spaces from  column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+########################################
+########################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[94,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+#########################################
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+richness$Richness <- as.numeric(as.character(richness$Richness))
+richness_clean <- richness[!is.na(richness$Richness), ]
+##################
+dat <- richness_clean %>%
+  mutate(
+    Fermented.food.category = factor(Fermented.food.category),
+    Substrate               = factor(Substrate),
+    Type.of.fermentation    = factor(Type.of.fermentation),
+    Investigator            = factor(Investigator)
+  )
+m_lm <- lm(log1p(Richness) ~  Substrate + Type.of.fermentation+State, data = dat)
+res <- resid(m_lm)
+shapiro.test(res)
+m_pois <- glm(Richness ~  Substrate + Type.of.fermentation,
+              data = dat, family = poisson)
+disp <- sum(residuals(m_pois, type="pearson")^2) / df.residual(m_pois); disp
+# Formal tests / diagnostics
+performance::check_overdispersion(m_pois)
+sim <- DHARMa::simulateResiduals(m_pois); DHARMa::testDispersion(sim); DHARMa::testZeroInflation(sim)
+m_nb <- MASS::glm.nb(
+  Richness ~   Substrate + Type.of.fermentation+State,
+  data = dat
+)
+anova_tab <- car::Anova(m_nb, type = 2)   # likelihood-ratio tests
+print(anova_tab)
+r2 <- performance::r2(m_nb)
+r2
+
+# Adjusted means
+emm_sub  <- emmeans(m_nb, ~ Substrate,               type="response")
+emm_type <- emmeans(m_nb, ~ Type.of.fermentation,    type="response")
+emm_state<- emmeans(m_nb, ~ State,                    type="response")
+
+pw_sub   <- pairs(emm_sub,   adjust="tukey", type="response")
+pw_type  <- pairs(emm_type,  adjust="tukey", type="response")
+pw_state <- pairs(emm_state, adjust="tukey", type="response")
+sig_pw <- as.data.frame(pw_sub)
+sig_pw <- subset(sig_pw, p.value < 0.05)  
+cld_sub <- cld(emm_sub, adjust = "tukey", Letters = letters, type = "response")
+cld_sub$.group <- gsub("\\s+", "", cld_sub$.group)   # tidy spaces
+y_pos <- richness_clean %>%
+  group_by(Substrate) %>%
+  summarize(y = max(Richness, na.rm = TRUE) * 1.08, .groups = "drop")
+cld_df <- as.data.frame(cld_sub)
+grp <- names(cld_df)[1]             
+letters_df <- cld_df %>%
+  dplyr::transmute(
+    Substrate = .data[[grp]],
+    .group    = gsub("\\s+", "", .group)   # remove spaces in letters
+  ) %>%
+  dplyr::left_join(y_pos, by = "Substrate")
+q1 <- ggplot(richness_clean, aes(x = Substrate, y = Richness, fill = Substrate)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+              color = "black", stroke = 0.4, aes(fill = Substrate)) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(x = "", y = "Richness", title = "") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.6),
+        legend.position = "none") +
+  geom_text(data = letters_df,
+            aes(x = Substrate, y = y, label = .group),
+            vjust = 0, fontface = "bold")
+####################################
+ggsave(filename = "final_figs/gmm_richness_plot.svg", plot = q1, width = 10, height = 6, units = "in", dpi = 300, device = "svg")
+
+q1s <- ggplot(richness_clean, aes(x = State, y = Richness, fill = State)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "final_figs/section_1/gmm_richness_sof.svg", plot = q1s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+
+q2s <- ggplot(richness_clean, aes(x = Type.of.fermentation, y = Richness, fill =Type.of.fermentation)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
+  geom_jitter(
+    shape = 21, width = 0.2, size = 2.5, alpha = 0.5,
+    color = "black", stroke = 0.4, aes(fill = Substrate)
+  ) +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "",
+    x = "",
+    y = "Richness"
+  ) +
+  theme_minimal(base_size = 14) 
+ggsave(filename = "final_figs/section_1/gmm_richness_tof.svg", plot = p2s, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
+######################################
+######################################
+
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+####################################
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+meta <- meta[meta$Type.of.fermentation != "Not applicable",]
+#############################
+aff <- read.table("aff_modules.tsv", header=TRUE)
+fs <- read.table("fs_modules.tsv", header = TRUE)
+paula <- read.table("paula_/modules.tsv", header = TRUE)
+mk <- read.table("mk_modules.txt", header = TRUE)
+
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove  underscore in the end
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim emptyspaces from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+##############################################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[44,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+
+############################################################
+#const colors
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f"
+)
+
+#########################################
+library(compositions)
+library(Tjazi)
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#########################################
+# double check if its a data frame and numeric
+call <- as.data.frame(call)
+call[] <- lapply(call, function(x) as.numeric(as.character(x)))  # force numeric
+
+# Replace NA with 0 
+call[is.na(call)] <- 0
+
+
+n_zeroes <- rowSums(call == 0)
+call <- call[n_zeroes <= round(ncol(call) * 0.90),]
+
+call <- clr_c(call)
+rownames(call) <- gsub("\\.", "-", rownames(call))
+data.a.pca <- prcomp(call)
+
+pc1 <- round(data.a.pca$sdev[1]^2/sum(data.a.pca$sdev^2),4) * 100
+pc2 <- round(data.a.pca$sdev[2]^2/sum(data.a.pca$sdev^2),4) * 100
+pc3 <- round(data.a.pca$sdev[3]^2/sum(data.a.pca$sdev^2),4) * 100
+pc4 <- round(data.a.pca$sdev[4]^2/sum(data.a.pca$sdev^2),4) * 100
+pca = data.frame(PC1 = data.a.pca$x[,1],
+                 PC2 = data.a.pca$x[,2],
+                 PC3 = data.a.pca$x[,3],
+                 PC4 = data.a.pca$x[,4])
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(call), ]
+meta_filtered <- meta_filtered[match(rownames(call), meta_filtered$ID), ]
+meta_filtered <- meta_filtered[complete.cases(meta_filtered), ]
+pca <- pca[rownames(pca) %in% rownames(call), ]
+
+pca$ID <- meta_filtered$ID
+pca$Substrate <- meta_filtered$Substrate
+pca$State <- meta_filtered$State
+pca$TOF <- meta_filtered$Type.of.fermentation
+##############################################
+#PLOTTY
+
+# Update the corresponding row in pca
+pca$ID <- rownames(pca)
+###################################
+
+s1 <-ggplot(pca, aes(x = PC1, y = PC2, color = Substrate)) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(values = substrate_colors) +
+  labs(
+    title = "Gut-Brain Modules composition of fermented foods",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+#########
+##############################
+##############################
+
+loadings <- data.a.pca$rotation[, 1:2]
+loadings <- as.data.frame(loadings)
+loadings$Module <- rownames(loadings)
+
+
+top_features <- loadings[order(abs(loadings$PC1) + abs(loadings$PC2), decreasing = TRUE), ]
+top_features <- head(top_features, 5)
+
+top_features <- merge(top_features, anno[, c("Module", "Pathway")], by = "Module", all.x = TRUE)
+
+top_features$PC1 <- top_features$PC1 * 10
+top_features$PC2 <- top_features$PC2 * 10
+
+
+
+library(ggrepel)
+
+s1 <- s1 +
+  geom_point(aes(fill = Substrate), 
+             shape = 21,    # filled circle with outline
+             size = 3,
+             color = "black",  # black border
+             stroke = 0.7) +
+  geom_segment(data = top_features, 
+               aes(x = 0, y = 0, xend = PC1, yend = PC2),
+               arrow = arrow(length = unit(0.25, "cm"), type = "closed"),
+               color = "red", size = 0.9, lineend = "round") +
+  geom_label_repel(
+    data = top_features,
+    aes(x = PC1, y = PC2, label = Pathway),
+    size = 3.5,
+    color = "black",
+    fill = "white",          # white background
+    max.overlaps = 50,
+    box.padding = 0.5,
+    point.padding = 0.3,
+    segment.size = 0.3,
+    segment.color = "grey30",
+    force = 1.5,
+    nudge_y = 0.1,
+    nudge_x = 0.1
+  ) +
+  coord_fixed(ratio = 1) +
+  scale_fill_manual(values = substrate_colors) +  # <--- apply your custom colors here
+  theme_minimal()
+ggsave("final_figs/section_1/pca_gbm_plot.svg", plot = s1, width = 8, height = 6, units = "in")
+########################
+#########################
+#applying glm modelling
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#########################################
+
+call <- as.data.frame(call)
+call[] <- lapply(call, function(x) as.numeric(as.character(x)))  # force numeric
+
+# Replace NA with 0 
+call[is.na(call)] <- 0
+
+
+n_zeroes <- rowSums(call == 0)
+call <- call[n_zeroes <= round(ncol(call) * 0.90),]
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+
+anno <- read.csv("C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/annotation_gbm.csv")
+dim(anno)
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(call), ]
+meta_filtered <- meta_filtered[match(rownames(call), meta_filtered$ID), ]
+meta_filtered <- meta_filtered[complete.cases(meta_filtered), ]
+stopifnot("ID" %in% names(meta_filtered))
+stopifnot(all(rownames(call) %in% meta_filtered$ID))
+meta_aln <- meta_filtered %>%
+  filter(ID %in% rownames(call)) %>%
+  arrange(match(ID, rownames(call)))
+Y <- as.matrix(call[meta_aln$ID, , drop = FALSE])
+#sanity
+keep <- colSums(Y) >= 10
+Y <- Y[, keep, drop = FALSE]
+
+# Factors
+meta_aln$Type.of.fermentation <- factor(meta_aln$Type.of.fermentation)
+meta_aln$Substrate            <- factor(meta_aln$Substrate)
+meta_aln$State                <- factor(meta_aln$State)
+
+# Library-size offset (good practice for count GLMs)
+libsize <- rowSums(Y)
+off <- log(pmax(libsize, 1))
+
+# Fit multivariate GLM (Neg Bin)
+fit <- manyglm(Y ~ Type.of.fermentation + Substrate + State,
+               data   = meta_aln,
+               family = "negative.binomial",
+               offset = off)
+
+# Global tests (drop-one for each term) with PIT-trap resampling
+set.seed(1)
+anova_res <- anova.manyglm(fit,
+                           p.uni   = "none",     # we want global term tests
+                           test    = "LR",
+                           resamp  = "pit.trap", # recommended
+                           nBoot   = 999)        # increase if you want
+anova_res
+
+##############################
+##############################
+#trying within sample jaccard
+#i want to ee if the samples within a group are similar or not and jaccard +pcoa help me do so
+
+# Define custom colors for substrate categories
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f", "Palm Tree" = "#17becf"
+)
+
+meta_filtered <- meta[meta$ID %in% colnames(PA), ]
+meta_filtered <- meta_filtered[match(colnames(PA), meta_filtered$ID), ]
+
+
+PA_t <- t(PA)
+
+samples_meta <- meta_filtered
+substrates <- unique(samples_meta$Substrate)
+jaccard_results <- list()
+
+for (sub in substrates) {
+  group_indices <- which(samples_meta$Substrate == sub)
+  group_data <- PA_t[group_indices, , drop = FALSE]
+  
+  if (nrow(group_data) > 1) {
+    group_data <- as.matrix(group_data)
+    group_data <- apply(group_data, 2, as.numeric)
+    group_data <- group_data[rowSums(group_data) > 0, , drop = FALSE]
+    
+    if (nrow(group_data) > 1) {
+      dist_matrix <- suppressWarnings(as.matrix(vegdist(group_data, method = "jaccard")))
+      dists <- dist_matrix[lower.tri(dist_matrix)]
+      jaccard_results[[sub]] <- dists
+    } else {
+      jaccard_results[[sub]] <- NA
+    }
+  } else {
+    jaccard_results[[sub]] <- NA
+  }
+}
+
+
+jaccard_df <- do.call(rbind, lapply(names(jaccard_results), function(sub) {
+  dists <- jaccard_results[[sub]]
+  if (!all(is.na(dists))) {
+    data.frame(Sample = sub, Distance = dists)
+  }
+})) %>% as.data.frame()
+jaccard_df$Substrate_category <- jaccard_df$Sample
+
+
+sample_substrate_map <- meta_filtered[, c("ID", "Substrate")]
+jaccard_df <- merge(jaccard_df, sample_substrate_map, by.x = "Sample", by.y = "ID", all.x = TRUE)
+colnames(jaccard_df)[colnames(jaccard_df) == "Substrate"] <- "Substrate_category"
+jaccard_df <- jaccard_df[,-4]
+
+t1 <- ggplot(jaccard_df, aes(x = Sample, y = Distance, color = Substrate_category)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.6, size = 0.9) +
+  scale_color_manual(values = substrate_colors) +
+  theme_bw() +
+  ylab("Jaccard Distance") +
+  xlab("Substrate") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+        legend.title = element_blank()) +
+  ggtitle("Within-Substrate Jaccard Distances based on GBM composition")
+
+ggsave("final_figs/section_1/jaccard_gbm_plot_boxplot.svg", plot = t1, width = 8, height = 6, units = "in")
+
+################################################################
+################################################################
+#gbm STATS
+meta_clean <- meta_filtered[!is.na(meta_filtered$Substrate), ]
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+meta_clean <- meta_clean[match(rownames(call_clean), meta_clean$ID), ]
+clr_dist <- dist(call_clean, method = "euclidean")
+#######################
+# Check group dispersions
+disp <- betadisper(clr_dist, meta_clean$Substrate)
+anova(disp)
+disp$group.distances
+
+#report with caution
+#PERMANOVA revealed significant differences in sample composition between substrate groups (R² = 0.XX, p < 0.001).
+#However, a test for homogeneity of dispersion (betadisper) was also significant (p < 0.001), suggesting that differences may be influenced by unequal within-group variances
+########################
+adonis_result <- adonis2(clr_dist ~ Substrate, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ State, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Type.of.fermentation, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Substrate+Type.of.fermentation+State, data = meta_clean, method = "eucledian", permutations = 999, by = "term")
+print(adonis_result)
+############################################
+############################################
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+call_clean_df <- as.data.frame(call_clean)
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+meta_clean <- meta_clean[!is.na(meta_clean$Substrate), ]
+call_clean_df <- call_clean_df[rownames(call_clean_df) %in% meta_clean$ID, ]
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+pairwise_results <- pairwise.adonis(call_clean_df, 
+                                    factors = meta_clean$Substrate,
+                                    perm = 999)
+
+print(pairwise_results)
+write.csv(pairwise_results, file = "C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/supplementary/GBM_Pairwise_comparison_eucledian.csv")
+#############################
+meta_pa <- meta[meta$ID %in% colnames(PA), ]
+
+pa_filtered <- PA[, c("Module", meta_pa$ID)]  # keep 'Module' as first column
+pa_bin <- pa_filtered
+############################
+pa_bin <- as.data.frame(t(pa_bin[-1]))  # remove "Module" row before transpose
+colnames(pa_bin) <- pa_filtered$Module
+pa_bin <- as.data.frame(lapply(pa_bin, as.numeric))
+rownames(pa_bin) <- colnames(pa_filtered)[-1]
+# Remove samples with no present modules (all 0s)
+pa_bin <- pa_bin[rowSums(pa_bin) > 0, ]
+meta_pa <- meta_pa[meta_pa$ID %in% rownames(pa_bin), ]
+pa_bin <- pa_bin[rownames(pa_bin) %in% meta_pa$ID, ]
+meta_pa <- meta_pa[match(rownames(pa_bin), meta_pa$ID), ]
+stopifnot(identical(rownames(pa_bin), meta_pa$ID))
+
+jaccard_dist <- vegdist(pa_bin, method = "jaccard", binary = TRUE)
+
+
+jaccard_pcoa <- cmdscale(jaccard_dist, eig = TRUE, k = 2)
+
+eig_vals <- jaccard_pcoa$eig
+
+
+variance_explained <- eig_vals / sum(eig_vals[eig_vals > 0]) * 100
+
+pc1_var <- round(variance_explained[1], 2)
+pc2_var <- round(variance_explained[2], 2)
+jaccard_coords <- as.data.frame(jaccard_pcoa$points)
+colnames(jaccard_coords) <- c("PC1", "PC2")
+jaccard_coords$ID <- rownames(jaccard_coords)
+
+
+pca_df <- left_join(jaccard_coords, meta_pa, by = "ID")
+
+jac_gbm <- ggplot(pca_df, aes(x = PC1, y = PC2, fill = Substrate)) +
+  geom_point(shape = 21, size = 3, alpha = 0.8, stroke = 0.7, color = "black") +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "Gut brain modules composition of fermented foods-presence/absence",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+############################################
+ggsave("final_figs/section_1/jaccard_gbm_pca.svg", plot = jac_gbm, width = 8, height = 6, units = "in")
+#################
+adonis_result <- adonis2(jaccard_dist ~ Substrate + State + Type.of.fermentation,
+                         data = meta_pa,
+                         permutations = 999,
+                         method = "jaccard",  by = "term")
+
+print(adonis_result)
+#########################################
+#########################################
+
+##################################################################
+##################################################################
+#gut metabolic modules
+#gmm time
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+meta <- meta[meta$Type.of.fermentation != "Not applicable",]
+aff <- read.table("aff_gmm_modules.tsv", header=TRUE)
+fs <- read.table("Cfs_gmm_modules.tsv", header = TRUE)
+paula <- read.table("paula_gmm_modules.tsv", header = TRUE)
+mk <- read.table("mk_gmm_modules.txt", header = TRUE)
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+wk <- read.table("wk_gmm_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_gmm_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_gmm_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_gmm_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove trailing underscore
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim emptyspaces 
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+#################################
+#remove emptyspcae
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+##############################################################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[94,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+
+# substrate cols
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f"
+)
+
+#########################################
+library(compositions)
+library(Tjazi)
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#########################################
+
+call <- as.data.frame(call)
+call[] <- lapply(call, function(x) as.numeric(as.character(x)))  # force numeric
+
+
+call[is.na(call)] <- 0
+
+
+n_zeroes <- rowSums(call == 0)
+call <- call[n_zeroes <= round(ncol(call) * 0.90),]
+
+call <- clr_c(call)
+rownames(call) <- gsub("\\.", "-", rownames(call))
+data.a.pca <- prcomp(call)
+
+pc1 <- round(data.a.pca$sdev[1]^2/sum(data.a.pca$sdev^2),4) * 100
+pc2 <- round(data.a.pca$sdev[2]^2/sum(data.a.pca$sdev^2),4) * 100
+pc3 <- round(data.a.pca$sdev[3]^2/sum(data.a.pca$sdev^2),4) * 100
+pc4 <- round(data.a.pca$sdev[4]^2/sum(data.a.pca$sdev^2),4) * 100
+pca = data.frame(PC1 = data.a.pca$x[,1],
+                 PC2 = data.a.pca$x[,2],
+                 PC3 = data.a.pca$x[,3],
+                 PC4 = data.a.pca$x[,4])
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+
+anno <- read.csv("C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/annotation_gmm.csv")
+dim(anno)
+
+
+
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(call), ]
+meta_filtered <- meta_filtered[match(rownames(call), meta_filtered$ID), ]
+meta_filtered <- meta_filtered[complete.cases(meta_filtered), ]
+pca <- pca[rownames(pca) %in% rownames(call), ]
+
+pca$ID <- meta_filtered$ID
+pca$Substrate <- meta_filtered$Substrate
+pca$State <- meta_filtered$State
+pca$TOF <- meta_filtered$Type.of.fermentation
+##############################################
+#PLOTTY
+#temp fix until you decde what to do about fsob
+# Update the corresponding row in pca
+pca$ID <- rownames(pca)
+
+
+#First, the main plot. Plot the first two components of the PCA
+
+#First, the main plot. Plot the first two components of the PCA
+s2 <-ggplot(pca, aes(x = PC1, y = PC2, color = Substrate)) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(values = substrate_colors) +
+  labs(
+    title = "Gut metabolic modules composition of fermented foods",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+#########
+##############################
+##############################
+#finding the top pathways that explain the contributions
+loadings <- data.a.pca$rotation[, 1:2]
+loadings <- as.data.frame(loadings)
+loadings$Module <- rownames(loadings)
+
+top_features <- loadings[order(abs(loadings$PC1) + abs(loadings$PC2), decreasing = TRUE), ]
+top_features <- head(top_features, 10)
+
+top_features <- merge(top_features, anno[, c("Module", "Pathway")], by = "Module", all.x = TRUE)
+
+top_features$PC1 <- top_features$PC1 * 15
+top_features$PC2 <- top_features$PC2 * 15
+
+s2 <- s2 +
+  geom_point(aes(fill = Substrate), 
+             shape = 21,    # filled circle with outline
+             size = 3,
+             color = "black",  # black border
+             stroke = 0.7) +
+  geom_segment(data = top_features, 
+               aes(x = 0, y = 0, xend = PC1, yend = PC2),
+               arrow = arrow(length = unit(0.25, "cm"), type = "closed"),
+               color = "red", size = 0.9, lineend = "round") +
+  geom_label_repel(
+    data = top_features,
+    aes(x = PC1, y = PC2, label = Pathway),
+    size = 3.5,
+    color = "black",
+    fill = "white",          # white background
+    max.overlaps = 50,
+    box.padding = 0.5,
+    point.padding = 0.3,
+    segment.size = 0.3,
+    segment.color = "grey30",
+    force = 1.5,
+    nudge_y = 0.1,
+    nudge_x = 0.1
+  ) +
+  coord_fixed(ratio = 1) +
+  scale_fill_manual(values = substrate_colors) +  # <--- apply your custom colors here
+  theme_minimal()
+ggsave("final_figs/section_1/pca_gmm_plot.svg", plot = s2, width = 8, height = 6, units = "in")
+##############################
+#applying glm modelling
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#########################################
+# double check if its a data frame and numeric
+call <- as.data.frame(call)
+call[] <- lapply(call, function(x) as.numeric(as.character(x)))  # force numeric
+
+# Replace NA with 0 
+call[is.na(call)] <- 0
+
+
+n_zeroes <- rowSums(call == 0)
+call <- call[n_zeroes <= round(ncol(call) * 0.90),]
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+
+meta_filtered <- meta[meta$ID %in% rownames(call), ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#identified the tech reps wk002; remove them
+call <- call[!rownames(call) %in% extra_meta, ]
+extra_meta <- setdiff( rownames(call), meta_filtered$ID)
+length(extra_meta)#santy
+meta_filtered <- meta_filtered[meta_filtered$ID %in% rownames(call), ]
+meta_filtered <- meta_filtered[match(rownames(call), meta_filtered$ID), ]
+meta_filtered <- meta_filtered[complete.cases(meta_filtered), ]
+stopifnot("ID" %in% names(meta_filtered))
+stopifnot(all(rownames(call) %in% meta_filtered$ID))
+meta_aln <- meta_filtered %>%
+  filter(ID %in% rownames(call)) %>%
+  arrange(match(ID, rownames(call)))
+Y <- as.matrix(call[meta_aln$ID, , drop = FALSE])
+
+keep <- colSums(Y) >= 10
+Y <- Y[, keep, drop = FALSE]
+
+meta_aln$Type.of.fermentation <- factor(meta_aln$Type.of.fermentation)
+meta_aln$Substrate            <- factor(meta_aln$Substrate)
+meta_aln$State                <- factor(meta_aln$State)
+
+
+# Fit multivariate GLM (Negative Binomial)
+fit <- manyglm(Y ~ Type.of.fermentation + Substrate + State,
+               data   = meta_aln,
+               family = "negative.binomial")
+
+# Global tests (drop-one for each term) with PIT-trap resampling
+set.seed(123)
+anova_res <- anova.manyglm(fit,
+                           p.uni   = "none",     # we want global term tests
+                           test    = "LR",
+                           resamp  = "pit.trap", # recommended
+                           nBoot   = 999)        # increase if you want
+anova_res
+##############################
+##############################
+#trying within sample jaccard
+#i want to ee if the samples within a group are similar or not and how best to represent this
+# Load libraries
+library(vegan)
+library(ggplot2)
+library(dplyr)
+
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f", "Palm Tree" = "#17becf"
+)
+
+meta_filtered <- meta[meta$ID %in% colnames(PA), ]
+meta_filtered <- meta_filtered[match(colnames(PA), meta_filtered$ID), ]
+
+PA_t <- t(PA)
+
+samples_meta <- meta_filtered
+substrates <- unique(samples_meta$Substrate)
+jaccard_results <- list()
+
+for (sub in substrates) {
+  group_indices <- which(samples_meta$Substrate == sub)
+  group_data <- PA_t[group_indices, , drop = FALSE]
+  
+  if (nrow(group_data) > 1) {
+    group_data <- as.matrix(group_data)
+    group_data <- apply(group_data, 2, as.numeric)
+    group_data <- group_data[rowSums(group_data) > 0, , drop = FALSE]
+    
+    if (nrow(group_data) > 1) {
+      dist_matrix <- suppressWarnings(as.matrix(vegdist(group_data, method = "jaccard")))
+      dists <- dist_matrix[lower.tri(dist_matrix)]
+      jaccard_results[[sub]] <- dists
+    } else {
+      jaccard_results[[sub]] <- NA
+    }
+  } else {
+    jaccard_results[[sub]] <- NA
+  }
+}
+
+
+jaccard_df <- do.call(rbind, lapply(names(jaccard_results), function(sub) {
+  dists <- jaccard_results[[sub]]
+  if (!all(is.na(dists))) {
+    data.frame(Sample = sub, Distance = dists)
+  }
+})) %>% as.data.frame()
+jaccard_df$Substrate_category <- jaccard_df$Sample
+
+
+sample_substrate_map <- meta_filtered[, c("ID", "Substrate")]
+jaccard_df <- merge(jaccard_df, sample_substrate_map, by.x = "Sample", by.y = "ID", all.x = TRUE)
+colnames(jaccard_df)[colnames(jaccard_df) == "Substrate"] <- "Substrate_category"
+jaccard_df <- jaccard_df[,-4]
+
+p2 <- ggplot(jaccard_df, aes(x = Sample, y = Distance, color = Substrate_category)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.6, size = 0.9) +
+  scale_color_manual(values = substrate_colors) +
+  theme_bw() +
+  ylab("Jaccard Distance") +
+  xlab("Substrate") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+        legend.title = element_blank()) +
+  ggtitle("Within-Substrate Jaccard Distances based on GMM composition")
+ggsave("final_figs/section_1/jaccard_gmm_plot.svg", plot = p2, width = 8, height = 6, units = "in")
+#############################################################
+#############################################################
+#stat time to check if there is effect of substrate on GBMand GMM composition
+
+meta_clean <- meta_filtered[!is.na(meta_filtered$Substrate), ]
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+meta_clean <- meta_clean[match(rownames(call_clean), meta_clean$ID), ]
+clr_dist <- dist(call_clean, method = "euclidean")
+#######################
+# Check group dispersions
+disp <- betadisper(clr_dist, meta_clean$Substrate)
+anova(disp)
+########################
+plot(disp)
+boxplot(disp, main = "Group Dispersions (betadisper)")
+#report with caution
+#PERMANOVA revealed significant differences in sample composition between substrate groups (R² = 0.XX, p < 0.001).
+#However, a test for homogeneity of dispersion (betadisper) was also significant (p < 0.001), suggesting that differences may be influenced by unequal within-group variances
+########################
+adonis_result <- adonis2(clr_dist ~ Substrate, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ State, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Type.of.fermentation, data = meta_clean, permutations = 999)
+print(adonis_result)
+adonis_result <- adonis2(clr_dist ~ Substrate+State+Type.of.fermentation, data = meta_clean, permutations = 999)
+print(adonis_result)
+############################################
+############################################
+call_clean <- call[rownames(call) %in% meta_clean$ID, ]
+call_clean_df <- as.data.frame(call_clean)
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+meta_clean <- meta_clean[!is.na(meta_clean$Substrate), ]
+call_clean_df <- call_clean_df[rownames(call_clean_df) %in% meta_clean$ID, ]
+
+meta_clean <- meta_clean[match(rownames(call_clean_df), meta_clean$ID), ]
+
+pairwise_results <- pairwise.adonis(call_clean_df, 
+                                    factors = meta_clean$Substrate,
+                                    perm = 999)
+
+print(pairwise_results)
+write.csv(pairwise_results, file = "C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/supplementary/GMM_Pairwise_comparison_eucledian.csv")
+####################################
+####################################
+#jaccard pca
+
+# 1. Filter meta to only include samples also present in PA
+meta_pa <- meta[meta$ID %in% colnames(PA), ]
+
+pa_filtered <- PA[, c("Module", meta_pa$ID)]  # keep 'Module' as first column
+pa_bin <- pa_filtered
+############################
+pa_bin <- as.data.frame(t(pa_bin[-1]))  # remove "Module" row before transpose
+colnames(pa_bin) <- pa_filtered$Module
+pa_bin <- as.data.frame(lapply(pa_bin, as.numeric))
+rownames(pa_bin) <- colnames(pa_filtered)[-1]
+# Remove samples with no present modules (all 0s)
+pa_bin <- pa_bin[rowSums(pa_bin) > 0, ]
+meta_pa <- meta_pa[meta_pa$ID %in% rownames(pa_bin), ]
+pa_bin <- pa_bin[rownames(pa_bin) %in% meta_pa$ID, ]
+meta_pa <- meta_pa[match(rownames(pa_bin), meta_pa$ID), ]
+stopifnot(identical(rownames(pa_bin), meta_pa$ID))
+
+jaccard_dist <- vegdist(pa_bin, method = "jaccard", binary = TRUE)
+
+jaccard_pcoa <- cmdscale(jaccard_dist, eig = TRUE, k = 2)
+
+eig_vals <- jaccard_pcoa$eig
+
+variance_explained <- eig_vals / sum(eig_vals[eig_vals > 0]) * 100
+
+pc1_var <- round(variance_explained[1], 2)
+pc2_var <- round(variance_explained[2], 2)
+jaccard_coords <- as.data.frame(jaccard_pcoa$points)
+colnames(jaccard_coords) <- c("PC1", "PC2")
+jaccard_coords$ID <- rownames(jaccard_coords)
+
+pca_df <- left_join(jaccard_coords, meta_pa, by = "ID")
+
+jac_gmm <- ggplot(pca_df, aes(x = PC1, y = PC2, fill = Substrate)) +
+  geom_point(shape = 21, size = 3, alpha = 0.8, stroke = 0.7, color = "black") +
+  scale_fill_manual(values = substrate_colors) +
+  labs(
+    title = "Gut metabolic modules composition of fermented foods-presence/absence",
+    x = paste0("PC1 (", pc1, "%)"),
+    y = paste0("PC2 (", pc2, "%)")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12, face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "right"
+  )
+############################################
+ggsave("C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/final_figs/section_1/jaccard_gmm_pca.svg", plot = jac_gmm, width = 8, height = 6, units = "in")
+#################
+adonis_result <- adonis2(jaccard_dist ~ Substrate + State + Type.of.fermentation,
+                         data = meta_pa,
+                         permutations = 999,
+                         method = "jaccard",  by = "term")
+
+print(adonis_result)
+##########################################
+##########################################
+##########################################
+##########################################
+#nuance within milk kefir and water kefir
+#############################
+#############################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+meta <- meta[meta$Type.of.fermentation != "Not applicable",]
+#############################
+aff <- read.table("aff_modules.tsv", header=TRUE)
+fs <- read.table("fs_modules.tsv", header = TRUE)
+paula <- read.table("paula_/modules.tsv", header = TRUE)
+mk <- read.table("mk_modules.txt", header = TRUE)
+
+colnames(mk) <- gsub("\\.", "-", colnames(mk))
+
+wk <- read.table("wk_modules.tsv", header = TRUE)
+wk <- wk[, !grepl("^WK.*T", colnames(wk))]
+kom <- read.table("kom_modules.tsv", header = TRUE)
+kinema <- read.table("kinema_modules.tsv", header = TRUE)
+baijiu <- read.table("baijiu_modules.tsv", header = TRUE)
+################
+all <- list(aff, fs, paula, mk, wk, kom, kinema, baijiu)
+all <- reduce(all, full_join, by = "Module")
+###############################
+###############################
+names(all) <- sapply(names(all), function(col) {
+  # Replace dots with hyphens for WK columns
+  if (startsWith(col, "WK")) {
+    col <- gsub("\\.", "-", col)
+  }
+  if (startsWith(col, "WKMedia")) {
+    col <- gsub("\\_", "-", col)
+  }
+  
+  # Special case for WKMedia
+  if (startsWith(col, "WKMedia")) {
+    col <- substr(col, 1, 15)
+  } else if (startsWith(col, "AF") || startsWith(col, "FS")) {
+    col <- substr(col, 1, 4)
+  } else if (startsWith(col, "WK")) {
+    col <- substr(col, 1, 13)
+  } else if (startsWith(col, "PFG")) {
+    col <- substr(col, 1, 14)
+  } else if (startsWith(col, "SRR11")) {
+    col <- substr(col, 1, 11)
+  } else if (startsWith(col, "SRR88")) {
+    col <- substr(col, 1, 10)
+  } else if (startsWith(col, "K")) {
+    col <- substr(col, 1, 2)
+  } else {
+    col <- substr(col, 1, 6)
+  }
+  
+  # Remove  underscore in the end
+  col <- sub("_$", "", col)
+  col <- sub("-$", "", col)
+  return(col)
+})
+
+
+colnames(all)
+##############################
+# Trim whitespace from both column names and meta IDs
+clean_colnames <- trimws(colnames(all))
+clean_meta_ids <- trimws(meta$ID)
+
+# Find columns that are not in meta$ID
+invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
+
+invalid_cols
+################
+################
+PA <- all
+PA <- as.data.frame(PA)
+PA[is.na(PA)] <- 0
+PA[,-1] <- ifelse(all[-1] > 0,1,0)
+PA[is.na(PA)] <- 0
+richness <- c("Richness", colSums(PA[-1]))
+pa <- rbind(PA, richness)
+
+pa <- pa[44,]
+pa <- t(pa)
+pa <- as.data.frame(pa)
+colnames(pa) -> Null
+colnames(pa)[1] <- "Richness"
+pa <- rownames_to_column(pa, var = "Module")
+pa <- pa[-1,]
+colnames(pa)[1] <- "ID"
+pa$ID <- gsub("\\.", "-", pa$ID)
+
+richness <- merge(pa, meta, by ="ID")
+
+############################################################
+#keeping colors constant
+substrate_colors <- c(
+  "Dairy" = "#1f77b4", "Sugar" = "#ff7f0e", "Brine" = "#1b9e77",
+  "Soy" = "#d62728", "Coconut Dairy" = "#9467bd", "Cereal" = "#8c564b",
+  "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
+)
+richness$Richness <- as.numeric(as.character(richness$Richness))
+##################################
+#trying to capture what I did before
+# Ensure Richness is numeric and remove NAs
+richness$Richness <- as.numeric(as.character(richness$Richness))
+richness_clean <- richness[!is.na(richness$Richness), ]
+########
+########
+library(dplyr)
+
+mk <- richness_clean %>%
+  filter(Fermented.food.category %in% 
+           c("Dairy Kefir", "Raw Dairy kefir", "Pasteurized Dairy kefir"))
+
+geo <- read.csv("country_names_full_details.csv")
+mk2 <- mk %>%
+  dplyr::mutate(Sample = sub("_.*$", "", ID)) %>% 
+  dplyr::left_join(dplyr::select(geo, Sample, geo = Country_specific), by = "Sample") %>% 
+  dplyr::select(-Sample)
+
+head(mk2)
+mk3 <- mk2 %>%
+  mutate(geo = trimws(geo),            # clean stray spaces
+         geo = na_if(geo, "#N/A")) %>% # turn "#N/A" into real NA
+  filter(!is.na(geo))                  # keep only rows with geo present
+mk3 <- mk3 %>% mutate(geo = trimws(geo))
+#this is from liam cfmd
+mk_country <- ggplot(mk3, aes(x = reorder(geo, Richness, FUN = median, na.rm = TRUE), y = Richness)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.2, height = 0, alpha = 0.5, size = 1.8) +
+  labs(x = "Geography", y = "Richness of GBM pathways") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+###################
+ggsave("final_figs/section_1/mk_country_richness_gbm.svg", plot = mk_country, width = 8, height = 6, units = "in")
+###################
+mk_species <- read.csv("liam walsh milk kefir species.csv")
+mk_species <- mk_species[-1,]
+hdr_row <- which(mk_species[[1]] == "Species")[1]
+mk_species2 <- mk_species %>%
+  row_to_names(row_number = hdr_row)
+#########
+#########
+top_n <- 20  # number of taxa to keep; rest -> "Other"
+
+# 1) Build sample map with group and country
+sample_map <- mk3 %>%
+  dplyr::transmute(
+    Sample   = sub("_.*$", "", ID),   # A10_S1 -> A10
+    Richness,
+    geo,
+    group = dplyr::case_when(
+      Richness > 15 ~ ">15",
+      Richness < 5  ~ "<5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  dplyr::filter(!is.na(group))
+
+# keep one entry per Sample (if multiple, keep highest Richness)
+sample_map_unique <- sample_map %>%
+  dplyr::arrange(group, geo, dplyr::desc(Richness)) %>%
+  dplyr::distinct(Sample, .keep_all = TRUE)
+
+# 2) Keep only samples present in mk_species2
+samples <- intersect(sample_map_unique$Sample, names(mk_species2))
+sp_sub <- mk_species2 %>%
+  dplyr::select(Species, dplyr::any_of(samples))
+
+sp_long <- sp_sub %>%
+  tidyr::pivot_longer(-Species, names_to = "Sample", values_to = "abundance") %>%
+  dplyr::mutate(
+    abundance = suppressWarnings(as.numeric(abundance)),
+    abundance = tidyr::replace_na(abundance, 0)
+  ) %>%
+  dplyr::left_join(sample_map_unique, by = "Sample")
+
+top_taxa <- sp_long %>%
+  dplyr::group_by(Species) %>%
+  dplyr::summarise(total = sum(abundance, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::slice_max(total, n = top_n) %>%
+  dplyr::pull(Species)
+
+sp_country <- sp_long %>%
+  dplyr::mutate(Species2 = ifelse(Species %in% top_taxa, Species, "Other")) %>%
+  dplyr::group_by(group, geo, Species2) %>%
+  dplyr::summarise(abundance = sum(abundance, na.rm = TRUE), .groups = "drop")
+
+geo_levels <- sample_map_unique %>%
+  dplyr::group_by(group, geo) %>%
+  dplyr::summarise(medR = median(Richness, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::arrange(group, medR) %>%
+  dplyr::pull(geo) %>%
+  unique()
+
+sp_country <- sp_country %>%
+  dplyr::mutate(
+    geo = factor(geo, levels = geo_levels),
+    Species2 = forcats::fct_reorder(Species2, -abundance, .fun = sum, .desc = TRUE)
+  )
+##############################################################
+###############################################################
+
+ggplot(sp_country, aes(x = geo, y = abundance, fill = Species2)) +
+  geom_col(position = "fill") +    # use "stack" for raw totals instead of relative
+  facet_grid(~ group, scales = "free_x", space = "free_x") +
+  labs(x = "Country", y = "Relative abundance", fill = "Taxon",
+       title = "Taxonomic composition of kefir by country",
+       subtitle = "Groups: Richness > 15 and Richness < 5") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+#############
+#############
+#############
+#############
+#############
+#############
+wk <- richness_clean %>%
+  filter(Fermented.food.category %in% "Water kefir")
+wk_split <- wk %>%
+  mutate(original_id = ID) %>%     # keep the full, unsplit ID here
+  separate(
+    col  = ID,
+    into = c("ID", "passage", "state_sampled", "duration_of_ferment"),
+    sep  = "-",
+    remove = TRUE,                 # replace ID with the first token
+    fill   = "right",
+    extra  = "drop"
+  )
+
+wk_geo <- read.csv("C:/Users/Ramya.Balasubramania/Desktop/paper_1/drafts/science of food/samuel_water_kefir.csv")
+wk_geo<- wk_geo[,c(1,10)]
+jl_df <- df <- tibble(
+  Water_Kefir_ID                     = c("FS13","FS44","FS45","FS56","FS31","FS32","FS33"),
+  Location                    = c("UK", rep("Ireland", 6)),
+  Investigator           = "JL",
+  Substrate              = "Sugar",
+  Type.of.fermentation   = "Liquid"
+)
+jl <- jl_df[,c(1,2)]
+geo <- rbind(jl,wk_geo)
+wk3 <- wk_split %>%
+  left_join(geo, by = c("ID" = "Water_Kefir_ID")) %>%
+  rename(location = Location)
+wk3 <- wk3 %>% dplyr::filter(!is.na(location))
+plot_df <- wk3 %>% filter(!is.na(location))
+plot_df <- wk3 %>%
+  filter(!is.na(location), !is.na(Richness)) %>%
+  mutate(location = reorder(location, Richness, FUN = median))  # low→high
+
+ggplot(plot_df, aes(location, Richness)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.6) +
+  labs(x = "Location (ordered by median richness)", y = "Richness") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+############
+############
+#plotting high and low richness
+wk3 <- wk3 %>%
+  filter(!is.na(Richness)) %>%
+  filter(Richness < 5 | Richness > 15)
+wk_species <-  read.csv("samuel water kefir species.csv")
+
+ids <- unique(wk3$original_id)
+wk_species_keep <- wk_species %>%
+  mutate(sample = as.character(sample)) %>%
+  filter(sample %in% ids)
+
+
+
+
+loc_map <- wk3 %>%
+  dplyr::select(original_id, location, Richness) %>%
+  dplyr::filter(!is.na(location), !is.na(Richness)) %>%
+  dplyr::mutate(group = dplyr::case_when(
+    Richness > 15 ~ "Richness > 15",
+    Richness < 5  ~ "Richness < 5",
+    TRUE          ~ NA_character_
+  )) %>%
+  dplyr::filter(!is.na(group)) %>%
+  dplyr::rename(geo = location)
+
+
+abund <- wk_species_keep %>%
+  dplyr::inner_join(loc_map, by = c("sample" = "original_id"))
+
+species_cols <- setdiff(names(abund), c("sample","geo","Richness","group"))
+row_tot <- rowSums(abund[species_cols], na.rm = TRUE); row_tot[row_tot == 0] <- 1
+abund[species_cols] <- abund[species_cols] / row_tot
+
+top20 <- abund %>%
+  dplyr::summarise(dplyr::across(dplyr::all_of(species_cols), mean, na.rm = TRUE)) %>%
+  tidyr::pivot_longer(dplyr::everything(), names_to = "Species2", values_to = "mean_prop") %>%
+  dplyr::arrange(dplyr::desc(mean_prop)) %>%
+  dplyr::slice(1:20) %>%
+  dplyr::pull(Species2)
+
+sp_country <- abund %>%
+  tidyr::pivot_longer(dplyr::all_of(species_cols), names_to = "Species2", values_to = "prop") %>%
+  dplyr::mutate(Species2 = ifelse(Species2 %in% top20, Species2, "Other")) %>%
+  dplyr::group_by(geo, group, Species2) %>%
+  dplyr::summarise(abundance = mean(prop, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::group_by(geo, group) %>%
+  dplyr::mutate(abundance = abundance / sum(abundance)) %>%   # re-normalize to 1 per bar
+  dplyr::ungroup()
+
+ggplot(sp_country, aes(x = geo, y = abundance, fill = Species2)) +
+  geom_col(position = "fill") +   # relative abundances
+  facet_grid(~ group, scales = "free_x", space = "free_x") +
+  labs(x = "Country", y = "Relative abundance", fill = "Taxon",
+       title = "Taxonomic composition of kefir by country",
+       subtitle = "Groups: Richness > 15 and Richness < 5") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+##########################
+##########################
+dairy <- richness_clean %>% 
+  filter(
+    Substrate == "Dairy")
+
+dairy_sub <- dairy %>%
+  mutate(
+    # clean names a bit
+    Fermented.food.category = Fermented.food.category |>
+      str_trim() |>
+      str_replace("(?i)^wagashi (rind|core)$", "Wagashi"),
+    
+    # collapse kefir types into one subtype
+    Dairy_subtype = if_else(
+      Fermented.food.category %in% c("Dairy Kefir",
+                                     "Dairy kefir",
+                                     "Raw Dairy kefir",
+                                     "Pasteurized Dairy kefir"),
+      "Dairy kefir",
+      "Other dairy"
+    ),
+    
+    # color variable: all kefirs -> "Kefir", others keep their name
+    product_colour = case_when(
+      Fermented.food.category %in% c("Dairy Kefir",
+                                     "Dairy kefir",
+                                     "Raw Dairy kefir",
+                                     "Pasteurized Dairy kefir") ~ "Kefir",
+      TRUE ~ Fermented.food.category
+    )
+  )
+#######################################
+########################################
+p_dairy <- ggplot(dairy_sub, aes(x = Dairy_subtype, y = Richness)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(
+    aes(color = product_colour),
+    width = 0.15,
+    height = 0,
+    size = 2,
+    alpha = 0.7
+  ) +
+  theme_bw() +
+  labs(
+    x = "",
+    y = "Functional richness",
+    color = "Fermented food subtype"
+  )
+
+ggsave(
+  "C:/Users/Ramya.Balasubramania/Desktop/paper_1/IN-SILICO/in-silico_master_file/final_figs/section_1/within_dairy_richness_comparison.svg",
+  plot = p_dairy,
+  width = 8,
+  height = 6,
+  units = "in"
+)
+################################
+sugar <- richness_clean %>% 
+  filter(
+    Substrate == "Sugar")
+unique(sugar$Fermented.food.category)
+head(sugar)
+library(dplyr)
+library(ggplot2)
+
+
+sugar <- richness_clean %>% 
+  filter(Substrate == "Sugar")
+
+sugar_sub <- sugar %>%
+  mutate(
+    # collapse to 2 groups for x-axis
+    Sugar_subtype = if_else(
+      Fermented.food.category == "Water kefir",
+      "Water kefir",
+      "Other sugar"
+    ),
+    # colour: all Water kefir same, others keep their own label
+    product_colour = if_else(
+      Fermented.food.category == "Water kefir",
+      "Water kefir",
+      Fermented.food.category
+    )
+  )
+
+# check
+table(sugar_sub$Sugar_subtype)
+unique(sugar_sub$product_colour)
+
+p_sugar <- ggplot(sugar_sub, aes(x = Sugar_subtype, y = Richness)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(
+    aes(color = product_colour),
+    width = 0.15,
+    height = 0,
+    size = 2,
+    alpha = 0.7
+  ) +
+  theme_bw() +
+  labs(
+    x = "",
+    y = "Functional richness",
+    color = "Fermented food subtype"
+  )
+
+p_sugar
+ggsave(
+  "final_figs/section_1/within_sugar_richness_comparison.svg",
+  plot = p_sugar,
+  width = 8,
+  height = 6,
+  units = "in"
+)
+#############
+call <- all
+call <- t(call)
+colnames(call) <- call[1,]
+call <- call[-1,]
+#########################################
+
+call <- as.data.frame(call)
+call[] <- lapply(call, function(x) as.numeric(as.character(x)))  # force numeric
+
+
+call[is.na(call)] <- 0
+
+
+n_zeroes <- rowSums(call == 0)
+call <- call[n_zeroes <= round(ncol(call) * 0.90),]
+
+call <- clr_c(call)
+rownames(call) <- gsub("\\.", "-", rownames(call))
+data.a.pca <- prcomp(call)
+################################
+# overlap
+overlap <- intersect(rownames(call), meta$ID)
+
+# filtered + ordered metadata
+meta_keep <- meta %>%
+  filter(ID %in% overlap) %>%
+  arrange(match(ID, rownames(call)))
+
+call_keep <- call[meta_keep$ID, , drop = FALSE]
+# PCA on CLR matrix `call`; facet by Substrate; color by Fermented.food.category
+library(dplyr)
+library(ggplot2)
+
+stopifnot(all(c("ID","Substrate","Fermented.food.category") %in% names(meta_keep)))
+ids_overlap <- intersect(rownames(call), meta_keep$ID)
+meta_pca <- meta_keep %>%
+  dplyr::filter(ID %in% ids_overlap) %>%
+  dplyr::arrange(match(ID, ids_overlap))
+X <- as.matrix(call[meta_pca$ID, , drop = FALSE])
+
+keep_cols <- apply(X, 2, function(z) stats::var(z, na.rm = TRUE) > 0)
+X <- X[, keep_cols, drop = FALSE]
+
+pc <- prcomp(X, center = TRUE, scale. = FALSE)
+var_exp <- (pc$sdev^2) / sum(pc$sdev^2)
+pct1 <- round(100 * var_exp[1], 1)
+pct2 <- round(100 * var_exp[2], 1)
+
+
+scores <- as.data.frame(pc$x[, 1:2, drop = FALSE]) %>%
+  mutate(
+    ID = meta_pca$ID,
+    Substrate = meta_pca$Substrate,
+    TOF = meta_pca$Type.of.fermentation,
+    Fermented.food.category = meta_pca$Fermented.food.category
+  )
+
+scores_sugar <- scores %>%
+  filter(str_detect(Substrate, regex("^sugar$", ignore_case = TRUE)))
+pca_sugar<- ggplot(scores_sugar, aes(PC1, PC2, fill = Fermented.food.category)) +
+  geom_point(shape = 21, size = 2.8, stroke = 0.7, color = "black") +
+  facet_wrap(~ Substrate, scales = "free") +
+  labs(x = paste0("PC1 (", pct1, "%)"),
+       y = paste0("PC2 (", pct2, "%)"),
+       fill = "Fermented food") +
+  theme_minimal()
+scores_dairy <- scores %>%
+  filter(str_detect(Substrate, regex("^dairy$", ignore_case = TRUE)))
+scores_dairy <- scores_dairy %>%
+  mutate(
+    Fermented.food.category =
+      Fermented.food.category %>%
+      stringr::str_trim() %>%
+      # Kefir variants → "Dairy Kefir"
+      stringr::str_replace(stringr::regex("^raw\\s*dairy\\s*kefir$", ignore_case = TRUE), "Dairy Kefir") %>%
+      stringr::str_replace(stringr::regex("^dairy\\s*kefir$",        ignore_case = TRUE), "Dairy Kefir") %>%
+      stringr::str_replace(stringr::regex("^pasteuri[sz]ed\\s+dairy\\s+kefir$", ignore_case = TRUE), "Dairy Kefir") %>%
+      # Wagashi rind/core → "Wagashi"
+      stringr::str_replace(stringr::regex("^wagashi\\s+(rind|core)$", ignore_case = TRUE), "Wagashi")
+  )
+pca_dairy<- ggplot(scores_dairy, aes(PC1, PC2, fill = Fermented.food.category)) +
+  geom_point(shape = 21, size = 2.8, stroke = 0.7, color = "black") +
+  facet_wrap(~ Substrate, scales = "free") +
+  labs(x = paste0("PC1 (", pct1, "%)"),
+       y = paste0("PC2 (", pct2, "%)"),
+       fill = "Fermented food") +
+  theme_minimal()
+scores_brine <- scores %>%
+  filter(str_detect(Substrate, regex("^brine$", ignore_case = TRUE)))
+pca_brine <- ggplot(scores_brine, aes(PC1, PC2, fill = Fermented.food.category)) +
+  geom_point(shape = 21, size = 2.8, stroke = 0.7, color = "black") +
+  facet_wrap(~ Substrate, scales = "free") +
+  labs(x = paste0("PC1 (", pct1, "%)"),
+       y = paste0("PC2 (", pct2, "%)"),
+       fill = "Fermented food") +
+  theme_minimal()
+all_sub <- ggplot(scores, aes(PC1, PC2, color = TOF)) +
+  geom_point(size = 2, alpha = 0.9) +
+  facet_wrap(~ Substrate, scales = "free") +
+  labs(
+    x = paste0("PC1 (", pct1, "%)"),
+    y = paste0("PC2 (", pct2, "%)"),
+    color = "Fermented food",
+    title = "PCA of CLR-transformed profiles",
+    subtitle = "Faceted by Substrate; colored by Fermented food category"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+ggsave("final_figs/section_1/withinsubrine.svg", plot = pca_brine, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_1/withinsubsug.svg", plot = pca_sugar, width = 8, height = 6, units = "in")
+ggsave("final_figs/section_1/withinsubdairy.svg", plot = pca_dairy, width = 12, height = 6, units = "in")
+ggsave("final_figs/section_1/withinsubpca.svg", plot = all_sub, width = 12, height = 6, units = "in")
