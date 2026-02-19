@@ -63,15 +63,11 @@ names(all) <- sapply(names(all), function(col) {
   return(col)
 })
 
-
 colnames(all)
 ##############################
-
 clean_colnames <- trimws(colnames(all))
 clean_meta_ids <- trimws(meta$ID)
-
 invalid_cols <- setdiff(clean_colnames, clean_meta_ids)
-
 invalid_cols
 ################################
 all <- all[, !(colnames(all) %in% removed_samples)]#removing controls and replicates
@@ -84,9 +80,6 @@ substrate_colors <- c(
   "Root and tuber" = "#e41a1c", "Seed" = "#7f7f7f",  "Palm Tree" = "#B565A7"
 )
 #################################
-
-library(tidyverse)
-
 tryp <- tryp_ko %>%
   pivot_longer(
     cols = starts_with("KO"),
