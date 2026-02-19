@@ -1,4 +1,4 @@
-########################
+#######################
 bai_strat <- read.table("baijiu_strat_modules.tsv")
 bai_strat <- row_to_names(bai_strat, 1)
 bai_strat[, 3:ncol(bai_strat)] <- lapply(bai_strat[, 3:ncol(bai_strat)], as.numeric)
