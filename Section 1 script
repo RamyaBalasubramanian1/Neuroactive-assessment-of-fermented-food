@@ -224,7 +224,6 @@ PA[,-1] <- ifelse(all[-1] > 0,1,0)
 PA[is.na(PA)] <- 0
 richness <- c("Richness", colSums(PA[-1]))
 pa <- rbind(PA, richness)
-
 pa <- pa[44,]
 pa <- t(pa)
 pa <- as.data.frame(pa)
@@ -234,9 +233,7 @@ pa <- rownames_to_column(pa, var = "Module")
 pa <- pa[-1,]
 colnames(pa)[1] <- "ID"
 pa$ID <- gsub("\\.", "-", pa$ID)
-
 richness <- merge(pa, meta, by ="ID")
-
 ############################################################
 
 # Your custom substrate colors
@@ -255,20 +252,17 @@ p <- ggplot(richness, aes(x = Substrate, y = Richness, color = Substrate)) +
        y = "Richness") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
 ##################################
 #trying to capture what I did before
 # Ensure Richness is numeric and remove NAs
 richness$Richness <- as.numeric(as.character(richness$Richness))
 richness_clean <- richness[!is.na(richness$Richness), ]
-
 # Violin + Jitter plot
 library(ggplot2)
 library(ggpubr)
 kw_test <- kruskal.test(Richness ~ Substrate, data = richness_clean)
 kw_p <- format.pval(kw_test$p.value, digits = 3, eps = 0.001)
 kw_label <- paste0("Effect of substrate on GBM richness\np = ", kw_p)
-
 p1<- ggplot(richness_clean, aes(x = Substrate, y = Richness, fill = Substrate)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.6, color = "black") +
   geom_jitter(
@@ -295,10 +289,7 @@ p1<- ggplot(richness_clean, aes(x = Substrate, y = Richness, fill = Substrate)) 
     limits = c(0, NA),
     expand = expansion(mult = c(0.06, 0.05))
   )
-
 ggsave(filename = "final_figs/gbm_richness_plot.svg", plot = p1, width = 8, height = 6, units = "in", dpi = 300, device = "svg")
-
-
 #stat test
 shapiro.test(richness$Richness)
 kruskal.test(Richness ~ Substrate, data = richness)
