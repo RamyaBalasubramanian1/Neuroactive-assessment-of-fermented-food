@@ -121,7 +121,7 @@ library(multcomp); library(multcompView)
 meta <- read.csv("meta_insilico.csv")
 meta <- meta[,-c(7,8)]
 meta <- meta[meta$Type.of.fermentation != "Not applicable",]
-#############################
+############################
 aff <- read.table("aff_modules.tsv", header=TRUE)
 fs <- read.table("fs_modules.tsv", header = TRUE)
 paula <- read.table("paula_/modules.tsv", header = TRUE)
