@@ -1,0 +1,341 @@
+########################
+bai_strat <- read.table("baijiu_strat_modules.tsv")
+bai_strat <- row_to_names(bai_strat, 1)
+bai_strat[, 3:ncol(bai_strat)] <- lapply(bai_strat[, 3:ncol(bai_strat)], as.numeric)
+str(bai_strat)
+library(tidyr)
+
+bai_long <- pivot_longer(bai_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+bai_long <- bai_long[bai_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+bai_long_annotated <- merge(bai_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+bai_long_annotated$Module <- NULL
+names(bai_long_annotated)[names(bai_long_annotated) == "Annotation"] <- "Module"
+bai_long_annotated$Sample <- substr(bai_long_annotated$Sample, 1, 11)
+colnames(bai_long_annotated)[colnames(bai_long_annotated)=="Sample"] <- "ID"
+################
+bai_long_annotated <- bai_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+bai_long_annotated <- bai_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+############
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+anno <- read.csv("annotation_gbm.csv")
+kin_strat <- read.table("kinema_strat_modules.tsv")
+kin_strat <- row_to_names(kin_strat, 1)
+kin_strat[, 3:ncol(kin_strat)] <- lapply(kin_strat[, 3:ncol(kin_strat)], as.numeric)
+str(kin_strat)
+library(tidyr)
+
+kin_long <- pivot_longer(kin_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+kin_long <- kin_long[kin_long$Contribution > 0, ]
+kin_long_annotated <- merge(kin_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+kin_long_annotated$Module <- NULL
+names(kin_long_annotated)[names(kin_long_annotated) == "Annotation"] <- "Module"
+kin_long_annotated$Sample <- substr(kin_long_annotated$Sample, 1, 10)
+colnames(kin_long_annotated)[colnames(kin_long_annotated)=="Sample"] <- "ID"
+################
+kin_long_annotated <- kin_long_annotated %>%
+  inner_join(meta, by = "ID") %>%
+  filter(!is.na(Fermented.food.category))
+kin_long_annotated <- kin_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+###################
+###################
+mk_strat <- read.table("mk_strat_modules.tsv")
+mk_remove <- read.csv("mk_to_Remove.csv")
+removed_samples <- mk_remove %>%
+  filter(is.na(Time) | (Time) == "" | tolower(Time) == "remove") %>%
+  pull(Sample)
+colnames(mk_strat) <- gsub("\\.", "-", colnames(mk_strat))
+
+mk_strat <- row_to_names(mk_strat, 1)
+mk_strat[, 3:ncol(mk_strat)] <- lapply(mk_strat[, 3:ncol(mk_strat)], as.numeric)
+str(mk_strat)
+library(tidyr)
+
+mk_long <- pivot_longer(mk_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+mk_long <- mk_long[mk_long$Contribution > 0, ]
+mk_long$Sample <- sub("_interleaved.*", "", mk_long$Sample)
+
+mk_long <- mk_long[!mk_long$Sample %in% removed_samples,]
+
+
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+mk_long_annotated <- merge(mk_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+mk_long_annotated$Module <- NULL
+names(mk_long_annotated)[names(mk_long_annotated) == "Annotation"] <- "Module"
+mk_long_annotated <- mk_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+################
+################
+wk_strat <- read.table("wk_start_modules.tsv")
+wk_strat <- row_to_names(wk_strat, 1)
+wk_strat[, 3:ncol(wk_strat)] <- lapply(wk_strat[, 3:ncol(wk_strat)], as.numeric)
+str(wk_strat)
+library(tidyr)
+
+wk_long <- pivot_longer(wk_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+wk_long <- wk_long[wk_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+wk_long_annotated <- merge(wk_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+wk_long_annotated$Module <- NULL
+names(wk_long_annotated)[names(wk_long_annotated) == "Annotation"] <- "Module"
+wk_long_annotated <- merge(wk_long, anno[, c("Module", "Annotation", "Molecule")], 
+                           by = "Module", all.x = TRUE)
+################
+kom_strat <- read.table("kombucha_strat_modules.tsv")
+kom_strat <- row_to_names(kom_strat, 1)
+kom_strat[, 3:ncol(kom_strat)] <- lapply(kom_strat[, 3:ncol(kom_strat)], as.numeric)
+str(kom_strat)
+library(tidyr)
+
+kom_long <- pivot_longer(kom_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+kom_long <- kom_long[kom_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+library(RColorBrewer)
+molecules <- c("Kynurenine", "Tryptophan", "Glutamate", "Acetylcholine", "Histamine", 
+               "p-Cresol", "GABA", "Dopamine", "NO", "HSP", "Estrogen", 
+               "Quinolinic acid", "SCFA", "SAM", "Inositol")
+annotations <- c("Tryptophan metabolism", "Biogenic amine metabolism", "Tyrosine metabolism",
+                 "GABA metabolism", "NO metabolism", "Heat shock protein", "Steroid metabolism",
+                 "LCFA synthesis", "S-Adenosylmethionine (SAM) synthesis", "Sugar metabolism")
+
+mol_palette <- colorRampPalette(brewer.pal(12, "Set3"))
+ann_palette <- colorRampPalette(brewer.pal(12, "Paired"))
+
+mol_colors <- setNames(mol_palette(length(molecules)), molecules)
+ann_colors <- setNames(ann_palette(length(annotations)), annotations)
+
+
+
+kom_long_annotated <- merge(kom_long, anno[, c("Module", "Annotation")], by = "Module", all.x = TRUE)
+head(kom_long_annotated)
+kom_long_annotated$Module <- NULL
+names(kom_long_annotated)[names(kom_long_annotated) == "Annotation"] <- "Module"
+kom_long_annotated <- kom_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+kom_long_annotated <- merge(kom_long, anno[, c("Module", "Annotation", "Molecule")], 
+                            by = "Module", all.x = TRUE)
+kom_long_annotated <- kom_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+#################################################################
+##paula mk#############################################################
+###############################################
+paula_strat <- read.table("paula_strat_modules.tsv")
+paula_strat <- row_to_names(paula_strat, 1)
+paula_strat[, 3:ncol(paula_strat)] <- lapply(paula_strat[, 3:ncol(paula_strat)], as.numeric)
+str(paula_strat)
+library(tidyr)
+
+paula_long <- pivot_longer(paula_strat, 
+                           cols = -c(Taxon, Module), 
+                           names_to = "Sample", 
+                           values_to = "Contribution")
+paula_long <- paula_long[paula_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+paula_long_annotated <- merge(paula_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+
+paula_long_annotated <- paula_long_annotated %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+#################
+#fs
+fs_strat <- read.table("fs_strat_modules.tsv", header = TRUE)
+#fs_strat <- row_to_names(fs_strat, 1)
+fs_strat[, 3:ncol(fs_strat)] <- lapply(fs_strat[, 3:ncol(fs_strat)], as.numeric)
+str(fs_strat)
+library(tidyr)
+
+fs_long <- pivot_longer(fs_strat, 
+                        cols = -c(Taxon, Module), 
+                        names_to = "Sample", 
+                        values_to = "Contribution")
+fs_long <- fs_long[fs_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+fs_long_annotated <- merge(fs_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+head(fs_long_annotated)
+# fs_long_annotated$Sample <- sub("^(.*S[0-9]+).*", "\\1", fs_long_annotated$Sample)
+# fs_long_annotated$Module <- NULL
+# names(fs_long_annotated)[names(fs_long_annotated) == "Annotation"] <- "Module"
+fs_long_annotated$Sample <- substr(fs_long_annotated$Sample, 1, 4)
+colnames(fs_long_annotated)[colnames(fs_long_annotated) =="Sample"] = "ID"
+fs_fermented <- fs_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+######
+######
+#aff
+#aff food
+aff_strat <- read.table("aff_modules.tsv", header = TRUE)
+aff_strat[, 3:ncol(aff_strat)] <- lapply(aff_strat[, 3:ncol(aff_strat)], as.numeric)
+str(aff_strat)
+library(tidyr)
+
+aff_long <- pivot_longer(aff_strat, 
+                         cols = -c(Taxon, Module), 
+                         names_to = "Sample", 
+                         values_to = "Contribution")
+aff_long <- aff_long[aff_long$Contribution > 0, ]
+
+anno <- read.csv("annotation_gbm.csv")
+dim(anno)
+#################
+#################
+meta <- read.csv("meta_insilico.csv")
+meta <- meta[,-c(7,8)]
+
+aff_long_annotated <- merge(aff_long, anno[, c("Module", "Annotation", "Molecule")], by = "Module", all.x = TRUE)
+head(aff_long_annotated)
+aff_long_annotated$Sample <- substr(aff_long_annotated$Sample, 1, 4)
+aff_long_annotated$Module <- NULL
+names(aff_long_annotated)[names(aff_long_annotated) == "Annotation"] <- "Module"
+colnames(aff_long_annotated)[colnames(aff_long_annotated) =="Sample"] = "ID"
+##############################
+aff_fermented <- aff_long_annotated %>%
+  inner_join(meta, by = "ID") %>% 
+  filter(!is.na(Fermented.food.category))
+aff_fermented <- aff_fermented %>%
+  filter(Taxon != "unclassified") %>%
+  mutate(Taxon = sub(".*s__", "", Taxon))
+##############
+##############
+#cleaning all tables for taxonomic redundancy
+aff_fermented$Substrate[aff_fermented$Substrate == "Dairy"] <- "African_dairy"
+aff_fermented <- aff_fermented [,c(1,3,4,6,7)]
+names(aff_fermented)[names(aff_fermented) == "Module"] <- "Annotation"
+fs_fermented$Substrate[fs_fermented$Substrate == "Dairy"] <- "European_dairy"
+fs_fermented <- fs_fermented[,c(2,4,5,7,8)]
+paula_long_annotated$Substrate <- "Alternate dairy"
+paula_long_annotated <- paula_long_annotated[,c(2,4,5,7)]
+paula_long_annotated$Substrate <- "Alternate dairy"
+paula_long_annotated$Fermented.food.category <- "Alternate dairy kefir"
+kom_long_annotated$Substrate <- "Kombucha"
+kom_long_annotated$Fermented.food.category<- "Kombucha"
+kom_long_annotated <- kom_long_annotated[,c(2,4,5,7)]
+wk_long_annotated$Substrate <- "Wk"
+wk_long_annotated$Fermented.food.category <- "Sugar"
+wk_long_annotated <- wk_long_annotated[,c(2,4,5,7)]
+names(wk_long_annotated)[names(wk_long_annotated) == "Module"] <- "Annotation"
+kin_long_annotated$Substrate <- "Soy"
+kin_long_annotated <- kin_long_annotated[,c(1,3,4,5,6)]
+names(kin_long_annotated)[names(kin_long_annotated) == "Module"] <- "Annotation"
+mk_long_annotated$Substrate <- "European_dairy"
+mk_long_annotated <- mk_long_annotated[,-2]
+mk_long_annotated$Fermented.food.category <- "MK"
+bai_long_annotated$Substrate <- "Cereal"
+bai_long_annotated$Fermented.food.category <- "Baijiu"
+bai_long_annotated <- bai_long_annotated[,c(1,3,4,5,6)]
+names(bai_long_annotated)[names(bai_long_annotated) == "Module"] <- "Annotation"
+#########################
+library(dplyr)
+
+mk_long_annotated <- mk_long_annotated %>% rename(Annotation = Module)
+
+all_merged <- bind_rows(
+  mk_long_annotated,
+  wk_long_annotated,
+  kin_long_annotated,
+  fs_fermented,
+  bai_long_annotated,
+  aff_fermented,
+  kom_long_annotated
+)
+all_merged <- all_merged[,-c(5:8)]
+####################################
+####################################
+library(dplyr)
+
+uniq_contrib <- all_merged %>%
+  filter(!is.na(Annotation), !is.na(Substrate), Contribution > 0) %>%
+  group_by(Substrate, Annotation) %>%
+  summarise(
+    n_unique_taxa = n_distinct(Taxon),
+    .groups = "drop"
+  )
+
+head(uniq_contrib)
+library(dplyr)
+library(ggplot2)
+
+# 1) Summarise unique contributors per Annotation × Substrate
+uniq_contrib <- all_merged %>%
+  filter(!is.na(Annotation), !is.na(Substrate), Contribution > 0) %>%
+  group_by(Substrate, Annotation) %>%
+  summarise(n_unique_taxa = n_distinct(Taxon), .groups = "drop")
+
+# 2) Heatmap (blue -> red)
+ggplot(uniq_contrib, aes(x = Substrate, y = Annotation, fill = n_unique_taxa)) +
+  geom_tile(color = "white", linewidth = 0.2) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank()
+  ) +
+  labs(
+    x = "Substrate category",
+    y = "GBM annotation",
+    fill = "Unique taxa\ncontributors",
+    title = "Unique taxonomic contributors per GBM annotation across substrates"
+  )
+
