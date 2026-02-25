@@ -1,0 +1,289 @@
+Sample,ID,Country_specific,Country_broad
+A1,H20,#N/A,#N/A
+A2,KNC001,#N/A,#N/A
+A3,KNC002,#N/A,#N/A
+A4,KNC003,#N/A,#N/A
+A5,Mc +ve,#N/A,#N/A
+A6,CHN 8x1,China ,China 
+A7,CHN 8x2,China ,China 
+A8,CHN 24X1,China ,China 
+A9,CHN 24X2,China ,China 
+A10,C 8x1,Ireland,Ireland
+A11,C 8x2,Ireland,Ireland
+A12,C 24x1 ,Ireland,Ireland
+B1,C 24x2,Ireland,Ireland
+B2,Bel 8x1,Belgium ,Belgium 
+B3,Bel 8x2,Belgium ,Belgium 
+B4,Bel 24x1,Belgium ,Belgium 
+B5,Bel 24x2,Belgium ,Belgium 
+B6,GRK-A 8x1,Greece,Greece
+B7,GRK-A 8x2,Greece,Greece
+B8,GRK-A 24x1,Greece,Greece
+B9,GRK-A 24x2,Greece,Greece
+B10,B 8x1,Ireland,Ireland
+B11,B 8x2,Ireland,Ireland
+B12,B 24x1 ,Ireland,Ireland
+C1,B 24x2,Ireland,Ireland
+C2,ALA 8x1,Alaska ,United states
+C3,ALA 8x2,Alaska ,United states
+C4,ALA 24x1,Alaska ,United states
+C5,ALA 24x2,Alaska ,United states
+C6,ITA 8x1,Italy ,Italy 
+C7,ITA 8x2,Italy ,Italy 
+C8,ITA 24x1,Italy ,Italy 
+C9,ITA 24x2,Italy ,Italy 
+C10,UK 8x1,England ,UK
+C11,UK 8x2,England ,UK
+C12,UK 24x1,England ,UK
+D1,UK 24x2,England ,UK
+D2,ISR 8x1,Israel ,Israel 
+D3,ISR 8x2,Israel ,Israel 
+D4,ISR 24x1,Israel ,Israel 
+D5,ISR 24x2,Israel ,Israel 
+D6,DEN 8x1,Denmark ,Denmark 
+D7,DEN 8x2,Denmark ,Denmark 
+D8,DEN 24x1,Denmark ,Denmark 
+D9,DEN 24x2,Denmark ,Denmark 
+D10,TUN 8x1,Tunisia ,Tunisia 
+D11,TUN 8x2,Tunisia ,Tunisia 
+D12,TUN 24x1,Tunisia ,Tunisia 
+E1,TUN 24x2,Tunisia ,Tunisia 
+E2,LIS 8x1,England,UK
+E3,LIS 8x2,England,UK
+E4,LIS 24x1,England,UK
+E5,LIS 24x2,England,UK
+E6,X 8x1,Ireland,Ireland
+E7,X 8x2,Ireland,Ireland
+E8,X 24x1,Ireland,Ireland
+E9,X 24x2,Ireland,Ireland
+E10,JO 8x1,England,UK
+E11,JO 8x2,England,UK
+E12,JO 24x1,England,UK
+F1,JO 24x2,England,UK
+F2,EGT 8x1,England,UK
+F3,EGT 8x2,England,UK
+F4,EGT 24x1,England,UK
+F5,EGT 24x2,England,UK
+F6,COC 8x1,England,UK
+F7,COC 8x2,England,UK
+F8,COC 24x1,England,UK
+F9,COC 24x2,England,UK
+F10,GIN 8x1,England,UK
+F11,GIN 8x2,England,UK
+F12,GIN 24x1,England,UK
+G1,GIN 24x2,England,UK
+G2,CAN 8x1,Canada ,Canada 
+G3,CAN 8x2,Canada ,Canada 
+G4,CAN 24x1,Canada ,Canada 
+G5,CAN 24x2,Canada ,Canada 
+G6,POR 8x1,Portugal ,Portugal 
+G7,POR 8x2,Portugal ,Portugal 
+G8,POR 24x1,Portugal ,Portugal 
+G9,POR 24x2,Portugal ,Portugal 
+G10,A 8x1,Ireland,Ireland
+G11,A 8x2,Ireland,Ireland
+G12,A 24x1,Ireland,Ireland
+H1,A 24x2,Ireland,Ireland
+H2,GRK-B 8x1,Greece,Greece
+H3,GRK-B 8x2,Greece,Greece
+H4,GRK-B 24x1,Greece,Greece
+H5,GRK-B 24x2,Greece,Greece
+H6,IRL-E 8x1,Ireland,Ireland
+H7,IRL-E 8x2,Ireland,Ireland
+H8,IRL-E 24x1,Ireland,Ireland
+H9,IRL-E 24x2,Ireland,Ireland
+H10,L 2.2 8x1,Taiwan,Taiwan
+H11,L 2.2 8x2,Taiwan,Taiwan
+H12,L 2.2 24x1,Taiwan,Taiwan
+I1,L 2.2 24x2,Taiwan,Taiwan
+I2,M 0.2 8x1,Taiwan,Taiwan
+I3,M 0.2 8x2,Taiwan,Taiwan
+I4,M 0.2 24x1,Taiwan,Taiwan
+I5,M 0.2 24x2,Taiwan,Taiwan
+I6,NZ 8x1,New Zealand ,New Zealand 
+I7,NZ 8x2,New Zealand ,New Zealand 
+I8,NZ 24x1,New Zealand ,New Zealand 
+I9,NZ 24x2,New Zealand ,New Zealand 
+I10,E.M 8x1,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+I11,E.M 8x2,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+I12,E.M 24x1,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+J1,E.M 24x2,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+J2,T 3.2 8x1,Taiwan,Taiwan
+J3,T 3.2 8x2,Taiwan,Taiwan
+J4,T 3.2 24x1,Taiwan,Taiwan
+J5,T 3.2 24x2,Taiwan,Taiwan
+J6,Wel 8x1,Wales ,UK
+J7,Wel 8x2,Wales ,UK
+J8,Wel 24x1,Wales ,UK
+J9,Wel 24x2,Wales ,UK
+J10,D 8x1,Ireland,Ireland
+J11,D 8x2,Ireland,Ireland
+J12,D 24x1,Ireland,Ireland
+k1,D 24x2,Ireland,Ireland
+k2,Sing 8x1,Singapore ,Singapore 
+k3,Sing 8x2,Singapore ,Singapore 
+k4,Sing 24x1,Singapore ,Singapore 
+k5,Sing 24x2,Singapore ,Singapore 
+k6,US 8x1,United states ,United states 
+k7,US 8x2,United states ,United states 
+k8,US 24x1,United states ,United states 
+k9,US 24x2,United states ,United states 
+k10,H 8x1,Ireland,Ireland
+k11,H 8x2,Ireland,Ireland
+k12,H 24x1,Ireland,Ireland
+L1,H 24x2,Ireland,Ireland
+L2,Meg 8x1,England,UK
+L3,Meg 8x2,England,UK
+L4,Meg 24x1,England,UK
+L5,Meg 24x2,England,UK
+L6,L 2.1 8x1,Taiwan,Taiwan
+L7,L 2.1 8x2,Taiwan,Taiwan
+L8,L 2.1 24x1,Taiwan,Taiwan
+L9,L 2.1 24x2,Taiwan,Taiwan
+L10,I 8x1,Ireland,Ireland
+L11,I 8x2,Ireland,Ireland
+L12,I 24x1,Ireland,Ireland
+M1,I 24x2,Ireland,Ireland
+M2,T 3.3 8x1,Taiwan,Taiwan
+M3,T 3.3 8x2,Taiwan,Taiwan
+M4,T 3.3 24x1,Taiwan,Taiwan
+M5,T 3.3 24x2,Taiwan,Taiwan
+M6,In-B 8x1,India,India
+M7,In-B 8x2,India,India
+M8,In-B 24x1,India,India
+M9,In-B 24x2,India,India
+M10,Aus-B 8x1,Australia,Australia
+M11,Aus-B 8x2,Australia,Australia
+M12,Aus-B 24x1,Australia,Australia
+N1,Aus-B 24x2,Australia,Australia
+N2,Bala 8x1,England,UK
+N3,Bala 8x2,England,UK
+N4,Bala 24x1,England,UK
+N5,Bala 24x2,England,UK
+N6,G 8x1,Ireland,Ireland
+N7,G 8x2,Ireland,Ireland
+N8,G 24x1,Ireland,Ireland
+N9,G 24x2,Ireland,Ireland
+N10,In-A 8x1,India,India
+N11,In-A 8x2,India,India
+N12,In-A 24x1,India,India
+O1,In-A 24x2,India,India
+O2,FR-A 8x1,France,France
+O3,FR-A 8x2,France,France
+O4,FR-A 24x1,France,France
+O5,FR-A 24x2,France,France
+O6,Rus 8x1,Russia ,Russia 
+O7,Rus 8x2,Russia ,Russia 
+O8,Rus 24x1,Russia ,Russia 
+O9,Rus 24x2,Russia ,Russia 
+O10,T 3.1 8x1,Taiwan,Taiwan
+O11,T 3.1 8x2,Taiwan,Taiwan
+O12,T 3.1 24x1,Taiwan,Taiwan
+P1,T 3.1 24x2,Taiwan,Taiwan
+P2,Ger 8x1,Germany ,Germany 
+P3,Ger 8x2,Germany ,Germany 
+P4,Ger 24x1,Germany ,Germany 
+P5,Ger 24x2,Germany ,Germany 
+P6,Cro 8x1,Croatia ,Croatia 
+P7,Cro 8x2,Croatia ,Croatia 
+P8,Cro 24x1,Croatia ,Croatia 
+P9,Cro 24x2,Croatia ,Croatia 
+P10,L.B 8x1,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+P11,L.B 8x2,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+P12,L.B 24x1,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+Q1,L.B 24x2,Bosnia and Herzegovina ,Bosnia and Herzegovina 
+Q2,M 2.1 8x1,Taiwan,Taiwan
+Q3,M 2.1 8x2,Taiwan,Taiwan
+Q4,M 2.1 24x1,Taiwan,Taiwan
+Q5,M 2.1 24x2,Taiwan,Taiwan
+Q6,Aus-A 8x1,Australia,Australia
+Q7,Aus-A 8x2,Australia,Australia
+Q8,Aus-A 24x1,Australia,Australia
+Q9,Aus-A 24x2,Australia,Australia
+Q10,Chris 8x1,Ireland,Ireland
+Q11,Chris 8x2,Ireland,Ireland
+Q12,Chris 24x1,Ireland,Ireland
+R1,Chris 24x2,Ireland,Ireland
+R2,Eng 8x1,England ,UK
+R3,Eng 8x2,England ,UK
+R4,Eng 24x1,England ,UK
+R5,Eng 24x2,England ,UK
+R6,Esp 8x1,Spain ,Spain 
+R7,Esp 8x2,Spain ,Spain 
+R8,Esp 24x1,Spain ,Spain 
+R9,Esp 24x2,Spain ,Spain 
+R10,Swe 8x1,Sweden ,Sweden 
+R11,Swe 8x2,Sweden ,Sweden 
+R12,Swe 24x1,Sweden ,Sweden 
+S1,Swe 24x2,Sweden ,Sweden 
+S2,F 8x1,Ireland,Ireland
+S3,F 8x2,Ireland,Ireland
+S4,F 24x1,Ireland,Ireland
+S5,F 24x2,Ireland,Ireland
+S6,Fr-B 8x1,France,France
+S7,Fr-B 8x2,France,France
+S8,Fr-B 24x1,France,France
+S9,Fr-B 24x2,France,France
+S10,SA 8x1,South Africa ,South Africa 
+S11,SA 8x2,South Africa ,South Africa 
+S12,SA 24x1,South Africa ,South Africa 
+T1,SA 24x2,South Africa ,South Africa 
+T2,IRL-X 8x1,Ireland,Ireland
+T3,IRL-X 8x2,Ireland,Ireland
+T4,IRL-X 24x1,Ireland,Ireland
+T5,IRL-X 24x2,Ireland,Ireland
+T6,H20,#N/A,#N/A
+T7,KNC001,#N/A,#N/A
+T8,KNC002,#N/A,#N/A
+T9,KNC003,#N/A,#N/A
+T10,Mc +ve,#N/A,#N/A
+T11,M 24.07.20,#N/A,#N/A
+T12,M 13.10,#N/A,#N/A
+U1,M 28.06,#N/A,#N/A
+U2,M 12.07,#N/A,#N/A
+U3,M 27.06.20,#N/A,#N/A
+U4,M 11.10.20,#N/A,#N/A
+U5,M 25.03.20,#N/A,#N/A
+U6,M 26.03.20,#N/A,#N/A
+U9,POR 24x2,Portugal ,Portugal 
+U10,A 8x1,Ireland,Ireland
+U11,A 8x2,Ireland,Ireland
+U12,A 24x1,Ireland,Ireland
+U9,POR 24x2,Portugal ,Portugal 
+U10,A 8x1,Ireland,Ireland
+U11,A 8x2,Ireland,Ireland
+U12,A 24x1,Ireland,Ireland
+U_2_7,Grk-C 8x1 ,Greece,Greece
+U_2_8,Grk-C 8x2,Greece,Greece
+U_2_9,Grk-C 24x1,Greece,Greece
+U_2_10,Grk-C 24x2,Greece,Greece
+U_2_11,Ger-B 8x1 ,Germany,Germany
+U_2_12,Ger-B 8x2,Germany,Germany
+V1,Ger-B 24x1,Germany,Germany
+V2,Ger-B 24x2,Germany,Germany
+V3,Ger-C 8x1,Germany,Germany
+V4,Ger-C 8x2,Germany,Germany
+V5,Ger-C 24x1,Germany,Germany
+V6,Ger-C 24x2,Germany,Germany
+V7,Ger-D 8x1,Germany,Germany
+V8,Ger-D 8x2,Germany,Germany
+V9,Ger-D 24x1,Germany,Germany
+V10,Ger-D 24x2,Germany,Germany
+V11,Ger-E 8x1 ,Germany,Germany
+V12,Ger-E 8x2,Germany,Germany
+W1,Ger-E 24x1,Germany,Germany
+W2,Ger-E 24x2,Germany,Germany
+W3,Ger-F 8x1,Germany,Germany
+W4,Ger-F 8x2,Germany,Germany
+W5,Ger-F 24x1 ,Germany,Germany
+W6,Ger-F 24x2,Germany,Germany
+W7,IRL-Y 8x1,Ireland,Ireland
+W8,IRL-Y 8x2,Ireland,Ireland
+W9,IRL-Y 24x1,Ireland,Ireland
+W10,IRL-Y 24x2,Ireland,Ireland
+W11,H20,#N/A,#N/A
+W12,KNC001,#N/A,#N/A
+Y1,KNC002,#N/A,#N/A
+Y2,KNC003,#N/A,#N/A
+Y3,Mc +ve,#N/A,#N/A
+Y4,M 18.11.20,#N/A,#N/A
