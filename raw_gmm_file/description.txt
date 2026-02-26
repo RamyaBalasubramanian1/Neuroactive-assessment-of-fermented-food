@@ -1,0 +1,2 @@
+files ending with modules contain the unstratified output-used for pca plots and box plots
+files containing strat were used to generate sankey plots -used for descriptive analysis
